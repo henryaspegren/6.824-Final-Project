@@ -76,9 +76,9 @@ private:
 		 const CryptoKernel::BigNum& stakeConsumed);	
 };
 	
-	// we need some way to adjust the hash so that it gets smaller
+	// TODO @James - we need some way to adjust the hash so that it gets smaller
 	// the bigger your stake (so we are more likely to select that stake)
-	CrpytoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const std::string& blockId, const std::string& timestamp, const std::string& outputId);
+	CrpytoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CrpytoKernel::BigNum& consumableStake, const std::string& blockId, const std::string& timestamp, const std::string& outputId);
 	
 }
 
