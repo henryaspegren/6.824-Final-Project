@@ -6,7 +6,9 @@
 namespace CryptoKernel {
 class Consensus::PoSNaive : public Consensus { 
 public:
-	PoSNaive();
+	PoSNaive(const uint64_t amountWeight, 
+		const uint64_t ageWeight, 
+		std::string pubkey);
 	
 	bool isBlockBetter(Storage::Transaction* transaction,
 			const CryptoKernel::Blockchain::block& block,
@@ -22,13 +24,17 @@ public:
 	
 	bool verifyTransaction(Storage::Transaction *transaction, 
 				const CryptoKernel::Blockchain::transaction& tx);
-
+	
+	// in PoSNaive this needs to update the stake pool
+	// since outputs are automatically staked
 	bool confirmTransaction(Storage::Transaction *transaction,
 				const CryptoKernel::Blockchain::transaction& tx);
 
 	bool submitTransaction(Storage::Transaction *transaction,
 				const CryptoKernel::Blockchain::transaction& tx);
 
+	// in PoSNaive this needs to update the stake pool
+	// to reflect that a stake has been consumed
 	bool submitBlock(Storage::Transaction *transaction, 
 				const CryptoKernel::Blockchain::block& block);
 
@@ -36,42 +42,44 @@ public:
 
 private:
 	// config params.... not sure where these should go
+	// (these are fixed at start)
 	uint64_t amountWeight;
-	uint64_t heightWeight;
+	uint64_t ageWeight;
 
-	std::string pubKey
-
-	// a staked coin
-	struct StakedCoin{
-		uint64_t amount;
-		uint64_t height;
-	}
+	std::string pubKey;
 	
-	// the stake associated with a given pubKey
-	// staked coins are added and removed over time 	
-	struct Stake{
-		uint64_t lastStakedHeight; 
-		std::unordered_map<uint64_t, StakedCoins> stakedCoins;
-	}
+	/* Consensus critical data */	
+	// need to keep track of when an output was last staked
+	std::unorderd_map<std::string, uint64_t> heightLastStaked;
 
-	// pubKeys have stakes that evolve overtime
-	std::unorderd_map<std::string, Stake> pubKeyStakes;
-	
+	/* Consensus data that is actually stored in the blockchain */	
 	struct ConsensusData{
-		BigNum totalStakedCoinsConsumed;
+		CryptoKernel::BigNum stakeConsumed;
+		CryptoKernel::BigNum target;
+		CryptoKernel::BigNum totalWork;
+		CryptoKernel::BigNum totalStakeConsumed;
+		std::string pubKey;
+		std::string outputId;
+		uint64_t timestamp;
+		std::string signature; 
 	}
 
-	std::unorderd_map<std::string, Stake> pubKeyStakes;
-	 
-	
-	uint64_t calculateCoinAge(const StakedCoin& sc, 
-					const uint64_t amountWeight,
-					const  uint64_t heightWeight, 
-					const uint64_t currentHeight);
+	ConsensusData getConsensusData(const CryptoKernel::Blockchain::block& block);
 
-	uint64_t calculateTotalCoinAge(const Stake& stake);
+	ConsensusData getConesnsusData(const CryptoKernel::Blockchain::dbBlock& dbBlock);
 
-	
+	Json::Value consensusDataToJson(const ConsensusData& cd);	 
+
+	CryptoKernel::BigNum calculateStakeConsumed(const uint64_t age, const uint64_t amount);
+
+	CrytoKernel::BigNum calculateTarget(Storage::Transaction* transaction, 			const CryptoKernel::BigNum& prevBlockId, 
+		 const CryptoKernel::BigNum& stakeConsumed);	
 };
 	
-} 
+	// we need some way to adjust the hash so that it gets smaller
+	// the bigger your stake (so we are more likely to select that stake)
+	CrpytoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const std::string& blockId, const std::string& timestamp, const std::string& outputId);
+	
+}
+
+ 
