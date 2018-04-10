@@ -50,8 +50,7 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRule(Storage::Transaction*
 		}
 	
 		// verify the stake was selected according to the target
-		CryptoKernel::BigNum selectionValue = CryptoKernel::Consensus::PoSNaive::selectionFunction(
-			stakeConsumed, stakeConsumed, block.getId(), blockData.timestamp, blockData.outputId);
+		CryptoKernel::BigNum selectionValue = CryptoKernel::Consensus::PoSNaive::selectionFunction(stakeConsumed, stakeConsumed, block.getId(), blockData.timestamp, blockData.outputId);
 		if( selectionValue > target ){
 			return false;	
 		}
@@ -85,8 +84,8 @@ bool verifyTransaction(Storage::Transaction *transaction,
 
 bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction* transaction, const CryptoKernel::Blockchain::transaction& tx){
 	const std::set<CryptoKernel::Blockchain::input> inputs = tx.getInputs();
-	const std::set<CryptoKernel::Blockchain::output> outputs = tx.getOutputs();i
-	//TODO - how to safely get the height of the block that includes
+	const std::set<CryptoKernel::Blockchain::output> outputs = tx.getOutputs();
+	//TODO @James - how to safely get the height of the block that includes
 	// these transactions? 
 	uint64_t height = 0;
 	
@@ -112,7 +111,7 @@ bool CrpytoKernel::Consensus::PoSNaive::submitTransaction(Storage::Transaction *
 bool CryptoKernel::Consensus::PoSNaive::submitBlock(Storage::Transaction *transaction, const CryptoKernel::Blockchain::block& block){
 	CryptoKernel::Consensus::PoSNaive::ConsensusData blockData = CryptoKernel::Consensus::PoSNaive::getConsensusData(block);
 	// update the height of the consumed output
-	heightLastStaked[blockData.pubKey] = block.getHeight();
+	heightLastStaked[blockData.outputId] = block.getHeight();
 	return true;	
 };
 
@@ -120,15 +119,52 @@ void CryptoKernel::Consensus::start(){
 };
 
 CryptoKernel::Consensus::PoSNaive::ConsensusData CrpytoKernel::Consensus::PoSNaive::getConsensusData(const CryptoKernel::Blockchain::block& block){
-
+	CryptoKernel::Consensus::PoSNaive::ConsensusData cd;
+	const Json::Value cj = block.getConsensusData();
+	try {
+		cd.stakeConsumed = CryptoKernel::BigNum(cj["stakeConsumed"].asString());
+		cd.target = CrytpoKernel::BigNum(cj["target"].asString());
+		cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());
+		cd.totalStakeConsumed = CryptoKernel::BigNum(cj["totalStakeConsumed"].asString());
+		cd.pubKey = cj["pubKey"].asString();
+		cd.outputId = cj["outputId"].asString();
+		cd.timestamp = cj["timestamp"].asUInt64();
+		cd.signature = cj["signature"].asString();
+	} catch(const Json::Exception& e) {
+		throw CryptoKernel::Blockchain::InvalidElementException("Block consensusData JSON is malformed");
+	}
+	return cd
 };
 
 CryptoKernel::Consensus::PoSNaive::ConsensusData CryptoKernel::Consensus::PoSNaive::getConsensusData(const CryptoKernel::Blockchain::dbBlock& dbBlock){
-
+        CryptoKernel::Consensus::PoSNaive::ConsensusData cd;                                              
+        const Json::Value cj = dbBlock.getConsensusData(); 
+        try { 
+                cd.stakeConsumed = CryptoKernel::BigNum(cj["stakeConsumed"].asString());                  
+                cd.target = CrytpoKernel::BigNum(cj["target"].asString());
+                cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());                          
+                cd.totalStakeConsumed = CryptoKernel::BigNum(cj["totalStakeConsumed"].asString());        
+                cd.pubKey = cj["pubKey"].asString();
+                cd.outputId = cj["outputId"].asString();                                                  
+                cd.timestamp = cj["timestamp"].asUInt64();                                                
+                cd.signature = cj["signature"].asString();                                                
+        } catch(const Json::Exception& e) {
+                throw CryptoKernel::Blockchain::InvalidElementException("Block consensusData JSON is malformed");
+        }       
+        return cd   	
 };
 
 Json::Value CryptoKernel::PoSNaive::consensusDataToJson(const CrypotKernel::Consensus::PoSNaive::ConsensusData& cd){
-	
+	Json::Value consensusDataAsJson;
+	consensusDataAsJson["stakeConsumed"] = cd.stakeConsumed.toString();
+	consensusDataAsJson["target"] = cd.target.toString();
+	consensusDataAsJson["totalWork"] = cd.totalWork.toString();
+	consensusDataAsJson["totalStakeConsumed"] = cd.totalStakeConsumed.toString();
+	consensusDataAsJson["pubKey"] = cd.pubKey;
+	consensusDataAsJson["outputId"] = cd.outputId;
+	consensusDataAsJson["timestamp"] = cd.timestamp;
+	consensusDataAsJson["signature"] = cd.signature;
+	return consensusDataAsJson;
 };
 
 CryptoKernel::BigNum CrytoKernel::Consensus::PoSNaive::calculateStakeConsumed(

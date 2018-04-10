@@ -72,8 +72,7 @@ private:
 
 	CryptoKernel::BigNum calculateStakeConsumed(const uint64_t age, const uint64_t amount);
 
-	CrytoKernel::BigNum calculateTarget(Storage::Transaction* transaction, 			const CryptoKernel::BigNum& prevBlockId, 
-		 const CryptoKernel::BigNum& stakeConsumed);	
+	CrytoKernel::BigNum calculateTarget(Storage::Transaction* transaction, const CryptoKernel::BigNum& prevBlockId);	
 };
 	
 	// TODO @James - we need some way to adjust the hash so that it gets smaller
