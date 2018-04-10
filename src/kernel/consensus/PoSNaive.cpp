@@ -44,13 +44,13 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRule(Storage::Transaction*
 		}
 		
 		// check that the target is calculated corrctly
-		CryptoKernel::BigNum target = CryptoKernel::Consensus::PoSNaive::calculateTarget(transaction, block.getPreviousBlockId(), stakeConsumed);
+		CryptoKernel::BigNum target = CryptoKernel::Consensus::PoSNaive::calculateTarget(transaction, block.getPreviousBlockId());
 		if( target != blockData.target ){
 			return false;
 		}
 	
 		// verify the stake was selected according to the target
-		CryptoKernel::BigNum selectionValue = CryptoKernel::Consensus::PoSNaive::selectionFunction(stakeConsumed, stakeConsumed, block.getId(), blockData.timestamp, blockData.outputId);
+		CryptoKernel::BigNum selectionValue = CryptoKernel::Consensus::PoSNaive::selectionFunction(stakeConsumed, block.getId(), blockData.timestamp, blockData.outputId);
 		if( selectionValue > target ){
 			return false;	
 		}
@@ -180,12 +180,12 @@ CryptoKernel::BigNum CrpytoKernel::Consensus::PoSNaive::calculateTarget(Storage:
 	return CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 }
 
-CryptoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& consumeableStake, const std::string& blockId, const std::string& timestamp, const std::string& outputId){
+CryptoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const std::string& blockId, const std::string& timestamp, const std::string& outputId){
 	// TODO - SHA_256(blockId||timestamp||outputId) somehow scaled by stakeConsumed
 	std::stringstream buffer;
 	buffer << blockId << timestamp << outputId;
-	CryptoKernel::BigNum hash = CryptoKernel::BigNum(crypto.sha256(buffer.str() ));
-	CryptoKernel::BigNum finalValue = finalValue*(stakeConsumed/consumeableStake); 
+	CryptoKernel::BigNum hash = CryptoKernel::BigNum(crypto.sha256(buffer.str()));
+	CryptoKernel::BigNum finalValue = finalValue/consumeableStake; 
 	return hash-stakeConsumed;
 };
 
