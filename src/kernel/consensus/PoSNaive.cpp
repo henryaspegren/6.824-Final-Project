@@ -85,9 +85,8 @@ bool CryptoKernel::PoSNaive::verifyTransaction(Storage::Transaction *transaction
 bool CryptoKernel::PoSNaive::confirmTransaction(Storage::Transaction* transaction, const CryptoKernel::Blockchain::transaction& tx){
 	const std::set<CryptoKernel::Blockchain::input> inputs = tx.getInputs();
 	const std::set<CryptoKernel::Blockchain::output> outputs = tx.getOutputs();
-	//TODO @James - how to safely get the height of the block that includes
-	// these transactions? 
-	uint64_t height = 0;
+	CryptoKernel::Blockchain::block block = this->blockchain->getBlock(transaction, "tip");
+	uint64_t height = block.getHeight()+1;
 	
 	// remove all outputids that have been consumed 
 	for( const auto& input : inputs ) {
@@ -97,11 +96,7 @@ bool CryptoKernel::PoSNaive::confirmTransaction(Storage::Transaction* transactio
 
 	// add all outputids that have been created, recording height
 	for( const auto& output : outputs ) {
-		// TODO @James - the nonce is the outputId correct?
-		const uint64_t nonce = output.getNonce();
-		std::stringstream buffer;
-		buffer << std::hex << nonce;
-		CryptoKernel::BigNum outputId = CryptoKernel::BigNum(buffer.str());
+		CryptoKernel::BigNum outputId = output.getId();
 		heightLastStaked[outputId.toString()] = height;
 	}
 
