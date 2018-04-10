@@ -3,7 +3,7 @@
 #include "PoSNaive.h"
 #include "../crypto.h"
 
-CryptoKernel::PoSNaive::PoSNaive(CryptoKernel::Blockchain* blockchain, const bool miner, const uint64_t amountWeight, const uint64_t ageWeight, std::string pubKey){
+CryptoKernel::PoSNaive::PoSNaive(CryptoKernel::Blockchain* blockchain, const bool miner, const CryptoKernel::BigNum amountWeight, const CryptoKernel::BigNum ageWeight, std::string pubKey){
 	this->blockchain = blockchain;
 	this->miner = miner;
 	this->amountWeight = amountWeight;
@@ -98,8 +98,10 @@ bool CryptoKernel::PoSNaive::confirmTransaction(Storage::Transaction* transactio
 	// add all outputids that have been created, recording height
 	for( const auto& output : outputs ) {
 		// TODO @James - the nonce is the outputId correct?
-		// 			output.getNonce()
-		CryptoKernel::BigNum outputId = CryptoKernel::BigNum("0");
+		const uint64_t nonce = output.getNonce();
+		std::stringstream buffer;
+		buffer << std::hex << nonce;
+		CryptoKernel::BigNum outputId = CryptoKernel::BigNum(buffer.str());
 		heightLastStaked[outputId.toString()] = height;
 	}
 
@@ -171,14 +173,19 @@ Json::Value CryptoKernel::PoSNaive::consensusDataToJson(const CryptoKernel::PoSN
 
 CryptoKernel::BigNum CryptoKernel::PoSNaive::calculateStakeConsumed(
         const uint64_t age, const uint64_t amount){
-	// TODO how to do this with BigNums..
-	const uint64_t coinAge = amountWeight*amount + ageWeight*age;
-	return CryptoKernel::BigNum("0");
+	std::stringstream buffer;
+	buffer << std::hex << age;
+	CryptoKernel::BigNum bigAge = CryptoKernel::BigNum(buffer.str());
+	std::stringstream buffer2;
+	buffer2 << std::hex << amount;
+	CryptoKernel::BigNum bigAmount = CryptoKernel::BigNum(buffer2.str()); 
+	CryptoKernel::BigNum coinAge = bigAmount*this->amountWeight + bigAge*this->ageWeight;
+	return coinAge;
 };
 
 CryptoKernel::BigNum CryptoKernel::PoSNaive::calculateTarget(Storage::Transaction* transaction, 
 	const CryptoKernel::BigNum& prevBlockId){
-	// TODO - use some other difficulty calculation (e.g. PoWs)
+	// TODO - @James use some other difficulty calculation here (e.g. PoWs)
 	return CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 }
 

@@ -12,8 +12,8 @@ class PoSNaive : public CryptoKernel::Consensus {
 public:
 	PoSNaive(Blockchain* blockchain,
 		const bool miner, 
-		const uint64_t amountWeight, 
-		const uint64_t ageWeight, 
+		const CryptoKernel::BigNum amountWeight, 
+		const CryptoKernel::BigNum ageWeight, 
 		std::string pubkey);
 	
 	bool isBlockBetter(Storage::Transaction* transaction,
@@ -49,8 +49,8 @@ public:
 private:
 	// config params.... not sure where these should go
 	// (these are fixed at start)
-	uint64_t amountWeight;
-	uint64_t ageWeight;
+	CryptoKernel::BigNum amountWeight;
+	CryptoKernel::BigNum ageWeight;
 	
 	// member variables 
 	Blockchain* blockchain;
