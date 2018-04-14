@@ -10,7 +10,8 @@ namespace CryptoKernel {
 */
 class PoSNaive : public CryptoKernel::Consensus {
 public:
-	PoSNaive(Blockchain* blockchain,
+	PoSNaive(const uint64_t blockTarget, 
+		Blockchain* blockchain,
 		const bool miner, 
 		const CryptoKernel::BigNum amountWeight, 
 		const CryptoKernel::BigNum ageWeight, 
@@ -51,7 +52,10 @@ private:
 	// (these are fixed at start)
 	CryptoKernel::BigNum amountWeight;
 	CryptoKernel::BigNum ageWeight;
-	
+	// TODO - @James - is this originally passed in as the difficulty of the
+	// first block?
+	uint64_t blockTarget;
+
 	// member variables 
 	Blockchain* blockchain;
 	bool miner; // probably the wrong word - TODO - staker(?)
