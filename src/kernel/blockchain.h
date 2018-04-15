@@ -511,6 +511,14 @@ public:
                              const CryptoKernel::Blockchain::block& block) = 0;
 
     /**
+     * Callback for when a block is being undone by the blockchain. The consensus class should
+     * reverse its state by one block when this is called.
+     * 
+     * @param transaction the blockchain database storage transaction in use
+     */
+    virtual void reverseBlock(Storage::Transaction* transaction) = 0;
+
+    /**
      * Starts the consensus algorithm, e.g. raft voting, mining etc
      */
     virtual void start() = 0;

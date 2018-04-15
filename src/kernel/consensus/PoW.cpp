@@ -24,6 +24,10 @@ void CryptoKernel::Consensus::PoW::start() {
     minerThread.reset(new std::thread(&CryptoKernel::Consensus::PoW::miner, this));
 }
 
+void CryptoKernel::Consensus::PoW::reverseBlock(Storage::Transaction* transaction) {
+    return;
+}
+
 void CryptoKernel::Consensus::PoW::miner() {
     time_t t = std::time(0);
     uint64_t now = static_cast<uint64_t> (t);
