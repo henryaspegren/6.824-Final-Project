@@ -45,6 +45,10 @@ public:
 	bool submitBlock(Storage::Transaction *transaction, 
 				const CryptoKernel::Blockchain::block& block);
 
+	// in PoSNaive this needs to update the stake pool
+	// to reflect a re-org
+	void reverseBlock(Storage::Transaction *transaction);
+
 	void miner();
 	
 	void start();
@@ -68,6 +72,7 @@ private:
 	/* Consensus critical data */	
 	// need to keep track of when an output was last staked
 	std::unordered_map<std::string, uint64_t> heightLastStaked;
+	std::unordered_map<std::string, bool> canBeStaked;
 
 	/* Consensus data that is actually stored in the blockchain */	
 	struct ConsensusData{
@@ -77,6 +82,8 @@ private:
 		CryptoKernel::BigNum totalStakeConsumed;
 		std::string pubKey;
 		std::string outputId;
+		uint64_t outputAge;
+		uint64_t outputValue;
 		uint64_t timestamp;
 		std::string signature; 
 	};
