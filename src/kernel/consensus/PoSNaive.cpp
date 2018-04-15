@@ -82,6 +82,15 @@ bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transacti
 	};		
 };
 
+Json::Value CryptoKernel::PoSNaive::generateConsensusData(Storage::Transaction* transaction,
+	const CryptoKernel::BigNum& previousBlockId,
+	const std::string& publicKey){
+	CryptoKernel::PoSNaive::ConsensusData cd;
+	cd.target = CryptoKernel::PoSNaive::calculateTarget(transaction, previousBlockId);
+	Json::Value asJson = CryptoKernel::PoSNaive::consensusDataToJson(cd);
+	return asJson;
+};
+
 void CryptoKernel::PoSNaive::miner(){
 	time_t t = std::time(0);
 	uint64_t now = static_cast<uint64_t> (t);
@@ -202,7 +211,7 @@ bool CryptoKernel::PoSNaive::submitBlock(Storage::Transaction *transaction, cons
 	return true;	
 };
 
-void CryptoKernel::Consensus::start(){
+void CryptoKernel::PoSNaive::start(){
 };
 
 CryptoKernel::PoSNaive::ConsensusData CryptoKernel::PoSNaive::getConsensusData(const CryptoKernel::Blockchain::block& block){
@@ -348,7 +357,7 @@ CryptoKernel::BigNum CryptoKernel::PoSNaive::calculateTarget(Storage::Transactio
     }
 };
 
-CryptoKernel::BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
+CryptoKernel::BigNum CryptoKernel::PoSNaive::selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
 	std::stringstream buffer;
 	buffer << blockId.toString() << timestamp << outputId;
 	CryptoKernel::Crypto crypto;
