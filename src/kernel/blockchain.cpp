@@ -762,6 +762,8 @@ std::set<CryptoKernel::Blockchain::output> CryptoKernel::Blockchain::getSpentOut
 void CryptoKernel::Blockchain::reverseBlock(Storage::Transaction* dbTransaction) {
     const block tip = getBlock(dbTransaction, "tip");
 
+    consensus->reverseBlock(dbTransaction);
+
     auto eraseUtxo = [&](const auto& out, auto& db) {
         db->erase(dbTransaction, out.getId().toString());
 

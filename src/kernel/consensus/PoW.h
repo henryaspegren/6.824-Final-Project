@@ -94,6 +94,8 @@ public:
     CryptoKernel::BigNum calculatePoW(const CryptoKernel::Blockchain::block& block,
                                       const uint64_t nonce);
 
+    virtual void reverseBlock(Storage::Transaction* transaction);
+
     virtual void start();
 protected:
     CryptoKernel::Blockchain* blockchain;
