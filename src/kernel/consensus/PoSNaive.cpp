@@ -23,7 +23,7 @@ bool CryptoKernel::PoSNaive::isBlockBetter(Storage::Transaction* transaction,
 };
 
 bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transaction, 
-	const CryptoKernel::Blockchain::block& block,
+	CryptoKernel::Blockchain::block& block,
 	const CryptoKernel::Blockchain::dbBlock& previousBlock){
 	try{ 
 		const CryptoKernel::PoSNaive::ConsensusData blockData = CryptoKernel::PoSNaive::getConsensusData(block); 
