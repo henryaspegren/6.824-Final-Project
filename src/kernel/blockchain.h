@@ -356,6 +356,9 @@ public:
     unsigned int mempoolCount() const;
     unsigned int mempoolSize() const;
 
+    Json::Value consensusGet(Storage::Transaction* dbTx, const std::string& key);
+    void consensusPut(Storage::Transaction* dbTx, const std::string& key, const Json::Value& value);
+
 private:
     std::unique_ptr<Storage::Table> blocks;
     std::unique_ptr<Storage::Table> candidates;
@@ -363,6 +366,7 @@ private:
     std::unique_ptr<Storage::Table> utxos;
     std::unique_ptr<Storage::Table> stxos;
     std::unique_ptr<Storage::Table> inputs;
+    std::unique_ptr<Storage::Table> consensusTable;
 
     std::unique_ptr<Storage> blockdb;
     BigNum genesisBlockId;
