@@ -40,6 +40,7 @@ CryptoKernel::Blockchain::Blockchain(CryptoKernel::Log* GlobalLog,
     stxos.reset(new CryptoKernel::Storage::Table("stxos"));
     inputs.reset(new CryptoKernel::Storage::Table("inputs"));
     candidates.reset(new CryptoKernel::Storage::Table("candidates"));
+    consensusTable.reset(new CryptoKernel::Storage::Table("consensus"));
     log = GlobalLog;
 }
 
@@ -377,8 +378,10 @@ std::tuple<bool, bool> CryptoKernel::Blockchain::submitTransaction(Storage::Tran
 }
 
 std::tuple<bool, bool> CryptoKernel::Blockchain::submitBlock(Storage::Transaction* dbTx,
-        const block& newBlock, bool genesisBlock) {
+        const block& Block, bool genesisBlock) {
     std::lock_guard<std::recursive_mutex> lock(chainLock);
+
+    block newBlock = Block;
 
     const std::string idAsString = newBlock.getId().toString();
     //Check block does not already exist
@@ -886,6 +889,16 @@ CryptoKernel::Storage::Transaction* CryptoKernel::Blockchain::getTxHandle() {
     chainLock.lock();
     Storage::Transaction* dbTx = blockdb->begin(chainLock);
     return dbTx;
+}
+
+Json::Value CryptoKernel::Blockchain::consensusGet(Storage::Transaction* dbTx, const std::string& key) {
+    std::lock_guard<std::recursive_mutex> lock(chainLock);
+    return consensusTable->get(dbTx, key);
+}
+
+void CryptoKernel::Blockchain::consensusPut(Storage::Transaction* dbTx, const std::string& key, const Json::Value& value) {
+    std::lock_guard<std::recursive_mutex> lock(chainLock);
+    consensusTable->put(dbTx, key, value);
 }
 
 CryptoKernel::Blockchain::Mempool::Mempool() {

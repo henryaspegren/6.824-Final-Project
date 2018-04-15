@@ -22,7 +22,7 @@ public:
 			const CryptoKernel::Blockchain::dbBlock& tip);
 
 	bool checkConsensusRules(Storage::Transaction* transaction,
-				const CryptoKernel::Blockchain::block& block,
+				CryptoKernel::Blockchain::block& block,
 				const CryptoKernel::Blockchain::dbBlock& previousBlock);	
 
 	Json::Value generateConsensusData(Storage::Transaction* transaction, 
