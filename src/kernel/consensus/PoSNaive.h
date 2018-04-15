@@ -3,6 +3,7 @@
 
 #include "../blockchain.h"
 #include <unordered_map>
+#include <thread>
 
 namespace CryptoKernel {
 /**
@@ -16,6 +17,8 @@ public:
 		const CryptoKernel::BigNum amountWeight, 
 		const CryptoKernel::BigNum ageWeight, 
 		std::string pubkey);
+	
+	~PoSNaive();
 	
 	bool isBlockBetter(Storage::Transaction* transaction,
 			const CryptoKernel::Blockchain::block& block,
@@ -64,6 +67,7 @@ private:
 	Blockchain* blockchain;
 	// TODO - wrong word? Should we call it staker?
 	bool run_miner;
+	std::unique_ptr<std::thread> minerThread;
 	// the pubkey we are mining for 
 	std::string pubKey;
 	// our staked outputs and associated amounts

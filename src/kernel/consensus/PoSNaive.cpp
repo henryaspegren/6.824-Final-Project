@@ -16,6 +16,11 @@ CryptoKernel::PoSNaive::PoSNaive(const uint64_t blockTarget,
 	this->pubKey = pubKey;
 };
 
+CryptoKernel::PoSNaive::~PoSNaive(){
+	this->run_miner = false;
+	this->minerThread->join();
+};
+
 bool CryptoKernel::PoSNaive::isBlockBetter(Storage::Transaction* transaction,
 	const CryptoKernel::Blockchain::block& block, 
 	const CryptoKernel::Blockchain::dbBlock& tip){
@@ -259,6 +264,7 @@ void CryptoKernel::PoSNaive::reverseBlock(Storage::Transaction *transaction){
 };
 
 void CryptoKernel::PoSNaive::start(){
+	this->minerThread.reset(new std::thread(&CryptoKernel::PoSNaive::miner, this));
 };
 
 CryptoKernel::PoSNaive::ConsensusData CryptoKernel::PoSNaive::getConsensusData(const CryptoKernel::Blockchain::block& block){
