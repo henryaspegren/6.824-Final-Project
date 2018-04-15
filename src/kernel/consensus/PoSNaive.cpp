@@ -26,7 +26,7 @@ bool CryptoKernel::PoSNaive::isBlockBetter(Storage::Transaction* transaction,
 	const CryptoKernel::Blockchain::dbBlock& tip){
 	const CryptoKernel::PoSNaive::ConsensusData blockData = this->getConsensusData(block);
 	const CryptoKernel::PoSNaive::ConsensusData tipData = this->getConsensusData(tip);	
-	return  blockData.totalStakeConsumed > tipData.totalStakeConsumed;
+	return  blockData.totalWork > tipData.totalWork;
 };
 
 bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transaction, 
@@ -67,14 +67,14 @@ bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transacti
 		}
 		
 		// check that the target is calculated corrctly
-		CryptoKernel::BigNum target = this->calculateTarget(transaction, block.getPreviousBlockId());
+		CryptoKernel::BigNum target = this->calculateTarget(transaction, block.getPreviousBlockId()) * stakeConsumed;
 		if( target != blockData.target ){
 			return false;
 		}
 	
 		// verify the stake was selected according to the target
-		CryptoKernel::BigNum selectionValue = this->selectionFunction(stakeConsumed, blockId, blockData.timestamp, blockData.outputId);
-		if( selectionValue < target ){
+		CryptoKernel::BigNum selectionValue = this->selectionFunction(blockId, blockData.timestamp, blockData.outputId);
+		if( selectionValue < target){
 			return false;	
 		}
 
@@ -82,11 +82,6 @@ bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transacti
 		CryptoKernel::BigNum inverse = CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - target;
 		// verify that the total work is updated correctly
 		if( blockData.totalWork != ( inverse + prevBlockData.totalWork ) ){
-			return false;
-		}
-		
-		// verify that the total stake consumed is updated correctly
-		if( blockData.totalStakeConsumed != ( stakeConsumed + prevBlockData.totalStakeConsumed ) ){
 			return false;
 		}
 
@@ -125,12 +120,8 @@ void CryptoKernel::PoSNaive::miner(){
 		Json::Value consensusDataThisBlock = block.getConsensusData();
 		Json::Value consensusDataPreviousBlock = previousBlock.getConsensusData();	
 		CryptoKernel::BigNum totalWorkPrev = CryptoKernel::BigNum(
-			consensusDataPreviousBlock["totalWork"].asString());
-		CryptoKernel::BigNum totalStakeConsumed = CryptoKernel::BigNum(
-			consensusDataPreviousBlock["totalStakeConsumed"].asString());		
+			consensusDataPreviousBlock["totalWork"].asString());	
 		CryptoKernel::BigNum target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
-		CryptoKernel::BigNum inverse = 
-			CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - target;
 		bool blockMined = false;
 		do{
 			t = std::time(0);
@@ -146,10 +137,7 @@ void CryptoKernel::PoSNaive::miner(){
 				consensusDataPreviousBlock = previousBlock.getConsensusData();
 				totalWorkPrev = CryptoKernel::BigNum(
                         		consensusDataPreviousBlock["totalWork"].asString());
-				totalStakeConsumed = CryptoKernel::BigNum(
-                        		consensusDataPreviousBlock["totalStakeConsumed"].asString()); 
 				target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
-				inverse = CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") 	- target;
 				now = time2;	
 			}
 			// check to see if any of our staked outputs are selected
@@ -165,14 +153,12 @@ void CryptoKernel::PoSNaive::miner(){
 				CryptoKernel::BigNum stakeConsumed = 
 					this->calculateStakeConsumed(age, value);
 				CryptoKernel::BigNum selectionValue = 
-					this->selectionFunction(stakeConsumed, 
-						blockId, time2, outputId);
+					this->selectionFunction(blockId, time2, outputId);
 				// output selected
-				if( selectionValue < target ) { 
+				if( selectionValue < target * stakeConsumed) { 
 				        consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
-                                        consensusDataThisBlock["target"] = target.toString();
-                                        consensusDataThisBlock["totalWork"] = (inverse + totalWorkPrev).toString();
-                                        consensusDataThisBlock["totalStakeConsumed"] = (totalStakeConsumed + stakeConsumed).toString();
+                                        consensusDataThisBlock["target"] = (target * stakeConsumed).toString();
+                                        consensusDataThisBlock["totalWork"] = (CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - (target * stakeConsumed) + totalWorkPrev).toString();
                                         consensusDataThisBlock["pubKey"] = pubKey;
                                         consensusDataThisBlock["outputId"] = outputId;
                                         consensusDataThisBlock["outputAge"] = age;
@@ -274,7 +260,6 @@ CryptoKernel::PoSNaive::ConsensusData CryptoKernel::PoSNaive::getConsensusData(c
 		cd.stakeConsumed = CryptoKernel::BigNum(cj["stakeConsumed"].asString());
 		cd.target = CryptoKernel::BigNum(cj["target"].asString());
 		cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());
-		cd.totalStakeConsumed = CryptoKernel::BigNum(cj["totalStakeConsumed"].asString());
 		cd.pubKey = cj["pubKey"].asString();
 		cd.outputId = cj["outputId"].asString();
 		cd.outputAge = cj["outputAge"].asUInt64();
@@ -294,7 +279,6 @@ CryptoKernel::PoSNaive::ConsensusData CryptoKernel::PoSNaive::getConsensusData(c
                 cd.stakeConsumed = CryptoKernel::BigNum(cj["stakeConsumed"].asString());
 		cd.target = CryptoKernel::BigNum(cj["target"].asString());
                 cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());                        
-		cd.totalStakeConsumed = CryptoKernel::BigNum(cj["totalStakeConsumed"].asString());
 		cd.pubKey = cj["pubKey"].asString();
                 cd.outputId = cj["outputId"].asString();
 		cd.outputAge = cj["outputAge"].asUInt64();
@@ -312,7 +296,6 @@ Json::Value CryptoKernel::PoSNaive::consensusDataToJson(const CryptoKernel::PoSN
 	consensusDataAsJson["stakeConsumed"] = cd.stakeConsumed.toString();
 	consensusDataAsJson["target"] = cd.target.toString();
 	consensusDataAsJson["totalWork"] = cd.totalWork.toString();
-	consensusDataAsJson["totalStakeConsumed"] = cd.totalStakeConsumed.toString();
 	consensusDataAsJson["pubKey"] = cd.pubKey;
 	consensusDataAsJson["outputId"] = cd.outputId;
 	consensusDataAsJson["outputAge"] = cd.outputAge;
@@ -330,7 +313,7 @@ CryptoKernel::BigNum CryptoKernel::PoSNaive::calculateStakeConsumed(
 	std::stringstream buffer2;
 	buffer2 << std::hex << amount;
 	CryptoKernel::BigNum bigAmount = CryptoKernel::BigNum(buffer2.str()); 
-	CryptoKernel::BigNum coinAge = bigAmount*this->amountWeight + bigAge*this->ageWeight;
+	CryptoKernel::BigNum coinAge = bigAmount*this->amountWeight * bigAge*this->ageWeight;
 	return coinAge;
 };
 
@@ -416,13 +399,11 @@ CryptoKernel::BigNum CryptoKernel::PoSNaive::calculateTarget(Storage::Transactio
     }
 };
 
-CryptoKernel::BigNum CryptoKernel::PoSNaive::selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
+CryptoKernel::BigNum CryptoKernel::PoSNaive::selectionFunction(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
 	std::stringstream buffer;
 	buffer << blockId.toString() << timestamp << outputId;
 	CryptoKernel::Crypto crypto;
-	CryptoKernel::BigNum hash = CryptoKernel::BigNum(crypto.sha256(buffer.str()));
-	CryptoKernel::BigNum finalValue = finalValue/stakeConsumed; 
-	return finalValue;
+	return CryptoKernel::BigNum(crypto.sha256(buffer.str()));
 };
 
 

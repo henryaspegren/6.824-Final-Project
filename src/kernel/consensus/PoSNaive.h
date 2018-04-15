@@ -83,7 +83,6 @@ private:
 		CryptoKernel::BigNum stakeConsumed;
 		CryptoKernel::BigNum target;
 		CryptoKernel::BigNum totalWork;
-		CryptoKernel::BigNum totalStakeConsumed;
 		std::string pubKey;
 		std::string outputId;
 		uint64_t outputAge;
@@ -102,7 +101,7 @@ private:
 
 	BigNum calculateTarget(Storage::Transaction* transaction, const CryptoKernel::BigNum& prevBlockId);
 
-	BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId);
+	BigNum selectionFunction(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId);
 	
 };
 
