@@ -5,10 +5,12 @@
 #include "../crypto.h"
 
 CryptoKernel::PoSNaive::PoSNaive(const uint64_t blockTarget,
-	CryptoKernel::Blockchain* blockchain, const bool miner, const CryptoKernel::BigNum amountWeight, const CryptoKernel::BigNum ageWeight, std::string pubKey){
+	CryptoKernel::Blockchain* blockchain, const bool run_miner, 
+	const CryptoKernel::BigNum amountWeight, 
+	const CryptoKernel::BigNum ageWeight, std::string pubKey){
 	this->blockTarget = blockTarget;
 	this->blockchain = blockchain;
-	this->miner = miner;
+	this->run_miner = run_miner;
 	this->amountWeight = amountWeight;
 	this->ageWeight = ageWeight;
 	this->pubKey = pubKey;
@@ -33,10 +35,10 @@ bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transacti
 		const CryptoKernel::BigNum blockId = block.getId();
 	
 		// check that the winning pubkey owns the output
-		if( outputData["publicKey"] != blockData.pubKey ){
+		if( outputData["publicKey"].asString() != blockData.pubKey ){
 			return false;
-		} 
-		
+		}
+ 	
 		// check that the stake is calculated correctly
 		const uint64_t age = block.getHeight() - heightLastStaked[blockData.outputId];
 		if( age <= 0 ){
@@ -80,10 +82,86 @@ bool CryptoKernel::PoSNaive::checkConsensusRules(Storage::Transaction* transacti
 	};		
 };
 
+void CryptoKernel::PoSNaive::miner(){
+	time_t t = std::time(0);
+	uint64_t now = static_cast<uint64_t> (t);
+	while (run_miner) {
+		CryptoKernel::Blockchain::block block = blockchain->generateVerifyingBlock(pubKey);
+		CryptoKernel::Blockchain::dbBlock previousBlock = this->blockchain->getBlockDB(
+                        block.getPreviousBlockId().toString());
+		uint64_t height = block.getHeight();
+                CryptoKernel::BigNum blockId = block.getId();
+
+		t = std::time(0);
+		now = static_cast<uint64_t> (t);
+		uint64_t time2 = now;
+
+		Json::Value consensusDataThisBlock = block.getConsensusData();
+		Json::Value consensusDataPreviousBlock = previousBlock.getConsensusData();	
+		CryptoKernel::BigNum totalWorkPrev = CryptoKernel::BigNum(
+			consensusDataPreviousBlock["totalWork"].asString());
+		CryptoKernel::BigNum totalStakeConsumed = CryptoKernel::BigNum(
+			consensusDataPreviousBlock["totalStakeConsumed"].asString());		
+		CryptoKernel::BigNum target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
+		CryptoKernel::BigNum inverse = 
+			CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - target;
+		bool blockMined = false;
+		do{
+			t = std::time(0);
+			time2 = static_cast<uint64_t>(t);
+			if((time2-now) % 20 == 0 && (time2 - now) > 0){
+				// update block we are 'mining' on top of 
+				block = blockchain->generateVerifyingBlock(pubKey);
+                 		previousBlock = this->blockchain->getBlockDB(
+					block.getPreviousBlockId().toString());
+                		height = block.getHeight();
+                		blockId = block.getId();
+				consensusDataThisBlock = block.getConsensusData();
+				consensusDataPreviousBlock = previousBlock.getConsensusData();
+				totalWorkPrev = CryptoKernel::BigNum(
+                        		consensusDataPreviousBlock["totalWork"].asString());
+				totalStakeConsumed = CryptoKernel::BigNum(
+                        		consensusDataPreviousBlock["totalStakeConsumed"].asString()); 
+				target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
+				inverse = CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") 
+						- target;
+				now = time2;	
+			}
+			// check to see if any of our staked outputs are selected
+			for( auto const& entry :  stakedOutputValues ){
+				std::string outputId = entry.first;
+				uint64_t value = entry.second;
+				uint64_t age = height - heightLastStaked[outputId];
+				CryptoKernel::BigNum stakeConsumed = 
+					this->calculateStakeConsumed(age, value);
+				CryptoKernel::BigNum selectionValue = 
+					this->selectionFunction(stakeConsumed, 
+						blockId, time2, outputId);
+				// output selected
+				if( selectionValue < target ) { 
+				        consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
+                                        consensusDataThisBlock["target"] = target.toString();
+                                        consensusDataThisBlock["totalWork"] = (inverse + totalWorkPrev).toString();
+                                        consensusDataThisBlock["totalStakeConsumed"] = (totalStakeConsumed + stakeConsumed).toString();
+                                        consensusDataThisBlock["pubKey"] = pubKey;
+                                        consensusDataThisBlock["outputId"] = outputId;
+                                        consensusDataThisBlock["timestamp"] = time2;
+                                        // TODO - sign here
+                                        consensusDataThisBlock["signature"] = "";
+					block.setConsensusData(consensusDataThisBlock);
+					this->blockchain->submitBlock(block);
+					blockMined = true;
+				}
+			}
+		} while( run_miner && !blockMined );
+	};
+};
+
+
 bool CryptoKernel::PoSNaive::verifyTransaction(Storage::Transaction *transaction, 
 			const CryptoKernel::Blockchain::transaction& tx){
 	return true;
-}
+};
 
 bool CryptoKernel::PoSNaive::confirmTransaction(Storage::Transaction* transaction, const CryptoKernel::Blockchain::transaction& tx){
 	const std::set<CryptoKernel::Blockchain::input> inputs = tx.getInputs();
@@ -94,13 +172,20 @@ bool CryptoKernel::PoSNaive::confirmTransaction(Storage::Transaction* transactio
 	// remove all outputids that have been consumed 
 	for( const auto& input : inputs ) {
 		CryptoKernel::BigNum outputId = input.getOutputId();
-		heightLastStaked.erase(outputId.toString());	
+		heightLastStaked.erase(outputId.toString());
+		stakedOutputValues.erase(outputId.toString());	
 	}
 
 	// add all outputids that have been created, recording height
 	for( const auto& output : outputs ) {
 		CryptoKernel::BigNum outputId = output.getId();
+		Json::Value data = output.getData();
+		std::string outputPubKey = data["publicKey"].asString();
 		heightLastStaked[outputId.toString()] = height;
+		// if this the pubKey we are mining for, add it to the stake pool
+		if( pubKey ==  outputPubKey ){
+			stakedOutputValues[outputId.toString()] = output.getValue();
+		}
 	}
 
 	return true;

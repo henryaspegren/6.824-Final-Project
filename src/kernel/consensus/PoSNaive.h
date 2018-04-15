@@ -12,7 +12,7 @@ class PoSNaive : public CryptoKernel::Consensus {
 public:
 	PoSNaive(const uint64_t blockTarget, 
 		Blockchain* blockchain,
-		const bool miner, 
+		const bool run_miner, 
 		const CryptoKernel::BigNum amountWeight, 
 		const CryptoKernel::BigNum ageWeight, 
 		std::string pubkey);
@@ -45,6 +45,8 @@ public:
 	bool submitBlock(Storage::Transaction *transaction, 
 				const CryptoKernel::Blockchain::block& block);
 
+	void miner();
+	
 	void start();
 
 private:
@@ -52,14 +54,16 @@ private:
 	// (these are fixed at start)
 	CryptoKernel::BigNum amountWeight;
 	CryptoKernel::BigNum ageWeight;
-	// TODO - @James - is this originally passed in as the difficulty of the
-	// first block?
 	uint64_t blockTarget;
 
 	// member variables 
 	Blockchain* blockchain;
-	bool miner; // probably the wrong word - TODO - staker(?)
+	// TODO - wrong word? Should we call it staker?
+	bool run_miner;
+	// the pubkey we are mining for 
 	std::string pubKey;
+	// our staked outputs and associated amounts
+	std::unordered_map<std::string, uint64_t> stakedOutputValues;
 	
 	/* Consensus critical data */	
 	// need to keep track of when an output was last staked
@@ -86,9 +90,7 @@ private:
 	BigNum calculateStakeConsumed(const uint64_t age, const uint64_t amount);
 
 	BigNum calculateTarget(Storage::Transaction* transaction, const CryptoKernel::BigNum& prevBlockId);
-	
-	// TODO @James - we need some way to adjust the hash so that it gets smaller
-	// the bigger your stake (so we are more likely to select that stake)
+
 	BigNum selectionFunction(const CryptoKernel::BigNum& stakeConsumed, const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId);
 	
 };
