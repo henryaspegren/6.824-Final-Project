@@ -33,6 +33,7 @@
 CryptoKernel::Blockchain::Blockchain(CryptoKernel::Log* GlobalLog,
                                      const std::string& dbDir) {
     status = false;
+    this->dbDir = dbDir;
     blockdb.reset(new CryptoKernel::Storage(dbDir));
     blocks.reset(new CryptoKernel::Storage::Table("blocks"));
     transactions.reset(new CryptoKernel::Storage::Table("transactions"));
@@ -883,8 +884,8 @@ CryptoKernel::Blockchain::transaction CryptoKernel::Blockchain::getTransaction(
 
 void CryptoKernel::Blockchain::emptyDB() {
     blockdb.reset();
-    CryptoKernel::Storage::destroy("./blockdb");
-    blockdb.reset(new CryptoKernel::Storage("./blockdb"));
+    CryptoKernel::Storage::destroy(dbDir);
+    blockdb.reset(new CryptoKernel::Storage(dbDir));
 }
 
 CryptoKernel::Storage::Transaction* CryptoKernel::Blockchain::getTxHandle() {
