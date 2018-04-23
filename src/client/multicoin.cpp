@@ -1,6 +1,7 @@
 #include "multicoin.h"
 
 #include "consensus/PoW.h"
+#include "consensus/PoSNaive.h"
 
 CryptoKernel::MulticoinLoader::MulticoinLoader(const std::string& configFile,
                                                Log* log,
@@ -94,6 +95,14 @@ std::function<uint64_t(const uint64_t)> CryptoKernel::MulticoinLoader::getSubsid
                 return G * std::pow(r, height);
             }
         };
+    } else if(name == "none") {
+        return [](const uint64_t height) {
+            if(height == 0) {
+                return std::numeric_limits<uint64_t>::max();
+            } else {
+                return static_cast<uint64_t>(0);
+            }
+        };
     } else {
         throw std::runtime_error("Unknown subsidy function " + name);
     }
@@ -110,6 +119,17 @@ std::unique_ptr<CryptoKernel::Consensus> CryptoKernel::MulticoinLoader::getConse
                                                  blockchain,
                                                  config["miner"].asBool(),
                                                  config["pubKey"].asString()));
+    } else if(name == "pos_naive") {
+        CryptoKernel::BigNum amountWeight(params["amountWeight"].asString());
+        CryptoKernel::BigNum ageWeight(params["ageWeight"].asString());
+
+        return std::unique_ptr<CryptoKernel::Consensus>(
+                new Consensus::PoSNaive(params["blocktime"].asUInt64(), 
+                                                    blockchain, 
+                                                    config["miner"].asBool(), 
+                                                    amountWeight, 
+                                                    ageWeight, 
+                                                    config["pubKey"].asString()));
     } else {
         throw std::runtime_error("Unknown consensus algorithm " + name);
     }

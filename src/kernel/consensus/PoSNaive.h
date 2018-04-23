@@ -9,14 +9,14 @@ namespace CryptoKernel {
 /**
 *	Implements a (Naive) Proof of Stake consensus Algorithm.	
 */
-class PoSNaive : public CryptoKernel::Consensus {
+class Consensus::PoSNaive : public CryptoKernel::Consensus {
 public:
 	PoSNaive(const uint64_t blockTarget, 
 		Blockchain* blockchain,
 		const bool run_miner, 
-		const CryptoKernel::BigNum amountWeight, 
-		const CryptoKernel::BigNum ageWeight, 
-		std::string pubkey);
+		const CryptoKernel::BigNum& amountWeight, 
+		const CryptoKernel::BigNum& ageWeight, 
+		const std::string& pubkey);
 	
 	~PoSNaive();
 	
