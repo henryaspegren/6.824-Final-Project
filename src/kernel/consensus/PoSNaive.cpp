@@ -184,8 +184,13 @@ bool CryptoKernel::Consensus::PoSNaive::verifyTransaction(Storage::Transaction *
 bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction* transaction, const CryptoKernel::Blockchain::transaction& tx){
 	const std::set<CryptoKernel::Blockchain::input> inputs = tx.getInputs();
 	const std::set<CryptoKernel::Blockchain::output> outputs = tx.getOutputs();
-	CryptoKernel::Blockchain::block block = this->blockchain->getBlock(transaction, "tip");
-	uint64_t height = block.getHeight()+1;
+	uint64_t height = 1;
+	try { 
+		CryptoKernel::Blockchain::block block = this->blockchain->getBlock(transaction, "tip");
+		height = block.getHeight()+1;
+	} catch (const CryptoKernel::Blockchain::NotFoundException& e) {
+		
+	}
 	
 	// mark all outputids so they cannot be staked again
 	// BUT keep the heightLastStaked incase a reorg requires
