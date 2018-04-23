@@ -74,7 +74,7 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRules(Storage::Transaction
 	
 		// verify the stake was selected according to the target
 		CryptoKernel::BigNum selectionValue = this->selectionFunction(blockId, blockData.timestamp, blockData.outputId);
-		if( selectionValue < target){
+		if( selectionValue > target){
 			return false;	
 		}
 
