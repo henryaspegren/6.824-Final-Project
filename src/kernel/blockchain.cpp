@@ -22,7 +22,6 @@
 #include <queue>
 #include <fstream>
 #include <math.h>
-#include <random>
 #include <thread>
 
 #include "blockchain.h"
@@ -695,7 +694,7 @@ CryptoKernel::Blockchain::block CryptoKernel::Blockchain::generateVerifyingBlock
         genesisBlock = true;
     }
     const time_t t = std::time(0);
-    const uint64_t now = static_cast<uint64_t> (t);;
+    const uint64_t now = static_cast<uint64_t> (t);
 
     uint64_t value = getBlockReward(height);
 
@@ -705,7 +704,6 @@ CryptoKernel::Blockchain::block CryptoKernel::Blockchain::generateVerifyingBlock
 
     const std::string pubKey = getCoinbaseOwner(publicKey);
 
-    std::default_random_engine generator(now);
     std::uniform_int_distribution<unsigned int> distribution(0, UINT_MAX);
     const uint64_t nonce = distribution(generator);
 

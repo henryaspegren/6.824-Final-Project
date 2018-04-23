@@ -22,6 +22,7 @@
 #include <set>
 #include <memory>
 #include <map>
+#include <random>
 
 #include "storage.h"
 #include "log.h"
@@ -371,6 +372,8 @@ private:
     std::unique_ptr<Storage> blockdb;
     BigNum genesisBlockId;
     Log *log;
+    
+    std::default_random_engine generator;
 
 	class Mempool {
 		public:
