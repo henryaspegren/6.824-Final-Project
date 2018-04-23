@@ -97,7 +97,7 @@ std::function<uint64_t(const uint64_t)> CryptoKernel::MulticoinLoader::getSubsid
         };
     } else if(name == "none") {
         return [](const uint64_t height) {
-            if(height == 0) {
+            if(height == 1) {
                 return std::numeric_limits<uint64_t>::max();
             } else {
                 return static_cast<uint64_t>(0);
