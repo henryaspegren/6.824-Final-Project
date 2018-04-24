@@ -123,23 +123,30 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 			consensusDataPreviousBlock["totalWork"].asString());	
 		CryptoKernel::BigNum target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
 		bool blockMined = false;
+		CryptoKernel::BigNum previousBlockId = block.getPreviousBlockId();
 		CryptoKernel::BigNum selectionValue;
 		do{
 			t = std::time(0);
 			time2 = static_cast<uint64_t>(t);
+			
+			block.setTimestamp(time2);
+			
 			if((time2-now) % 20 == 0 && (time2 - now) > 0){
 				// update block we are 'mining' on top of 
-				block = blockchain->generateVerifyingBlock(pubKey);
-                 		previousBlock = this->blockchain->getBlockDB(
-					block.getPreviousBlockId().toString());
-                		height = block.getHeight();
-                		blockId = block.getId();
-				consensusDataThisBlock = block.getConsensusData();
-				consensusDataPreviousBlock = previousBlock.getConsensusData();
-				totalWorkPrev = CryptoKernel::BigNum(
-                        		consensusDataPreviousBlock["totalWork"].asString());
-				target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
-				now = time2;
+				auto newBlock = blockchain->generateVerifyingBlock(pubKey);
+				if(newBlock.getPreviousBlockId() != previousBlockId) {
+				    previousBlockId = block.getPreviousBlockId();
+                    previousBlock = this->blockchain->getBlockDB(
+					    block.getPreviousBlockId().toString());
+                    height = block.getHeight();
+                    blockId = block.getId();
+				    consensusDataThisBlock = block.getConsensusData();
+				    consensusDataPreviousBlock = previousBlock.getConsensusData();
+				    totalWorkPrev = CryptoKernel::BigNum(
+                            		consensusDataPreviousBlock["totalWork"].asString());
+				    target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
+				    now = time2;
+				}
 			}
 			// check to see if any of our staked outputs are selected
 			for( auto const& entry :  stakedOutputValues ){

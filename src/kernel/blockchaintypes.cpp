@@ -602,6 +602,11 @@ Json::Value CryptoKernel::Blockchain::block::toJson() const {
     return returning;
 }
 
+void CryptoKernel::Blockchain::block::setTimestamp(const uint64_t timestamp) {
+    this->timestamp = timestamp;
+    id = calculateId();
+}
+
 Json::Value CryptoKernel::Blockchain::block::getData() const {
 	return data;
 }

@@ -170,6 +170,8 @@ public:
         void setConsensusData(const Json::Value& data);
 
         BigNum getId() const;
+        
+        void setTimestamp(const uint64_t timestamp);
 
     private:
         void checkRep();
