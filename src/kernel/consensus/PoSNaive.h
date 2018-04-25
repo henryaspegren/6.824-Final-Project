@@ -85,7 +85,7 @@ private:
 		CryptoKernel::BigNum totalWork;
 		std::string pubKey;
 		std::string outputId;
-		uint64_t outputAge;
+		uint64_t outputHeightLastStaked;
 		uint64_t outputValue;
 		uint64_t timestamp;
 		std::string signature; 
@@ -101,7 +101,7 @@ private:
 
 	BigNum calculateTarget(Storage::Transaction* transaction, const CryptoKernel::BigNum& prevBlockId);
 
-	BigNum selectionFunction(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId);
+	BigNum calculateHash(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId);
 	
 };
 

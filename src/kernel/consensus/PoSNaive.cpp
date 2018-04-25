@@ -37,7 +37,7 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRules(Storage::Transaction
 		const CryptoKernel::Blockchain::output output = this->blockchain->getOutput(transaction, blockData.outputId);
 		const uint64_t outputValue = output.getValue();
 		const Json::Value outputData = output.getData();
-		const uint64_t outputAge = this->heightLastStaked[blockData.outputId];
+		const uint64_t outputHeightLastStaked  = this->heightLastStaked[blockData.outputId];
 		const bool outputCanBeStaked = this->canBeStaked[blockData.outputId];
 		const CryptoKernel::BigNum blockId = block.getId();
 	
@@ -51,13 +51,13 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRules(Storage::Transaction
 			return false;
 		}
 
-		// check that the output age and value are correct
-		if( outputValue != blockData.outputValue || outputAge != blockData.outputAge ) {
+		// check that the output height last staked and value are correct
+		if( outputValue != blockData.outputValue || outputHeightLastStaked != blockData.outputHeightLastStaked ) {
 			return false;
 		} 
  	
 		// check that the stake is calculated correctly
-		const uint64_t age = block.getHeight() - heightLastStaked[blockData.outputId];
+		const uint64_t age = block.getHeight() - outputHeightLastStaked;
 		if( age <= 0 ){
 			return false;
 		} 
@@ -72,9 +72,9 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRules(Storage::Transaction
 			return false;
 		}
 	
-		// verify the stake was selected according to the target
-		CryptoKernel::BigNum selectionValue = this->selectionFunction(blockId, blockData.timestamp, blockData.outputId);
-		if( selectionValue > target * stakeConsumed){
+		// verify the stake was selected according to the coin-age adjusted target
+		CryptoKernel::BigNum hash = this->calculateHash(blockId, blockData.timestamp, blockData.outputId);
+		if( hash > target * stakeConsumed){
 			return false;	
 		}
 
@@ -107,7 +107,7 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 	time_t t = std::time(0);
 	uint64_t now = static_cast<uint64_t> (t);
 	while (run_miner) {
-		CryptoKernel::Blockchain::block block = blockchain->generateVerifyingBlock(pubKey);
+		CryptoKernel::Blockchain::block block = this->blockchain->generateVerifyingBlock(pubKey);
 		CryptoKernel::Blockchain::dbBlock previousBlock = this->blockchain->getBlockDB(
                         block.getPreviousBlockId().toString());
 		uint64_t height = block.getHeight();
@@ -124,7 +124,6 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 		CryptoKernel::BigNum target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
 		bool blockMined = false;
 		CryptoKernel::BigNum previousBlockId = block.getPreviousBlockId();
-		CryptoKernel::BigNum selectionValue;
 		do{
 			t = std::time(0);
 			time2 = static_cast<uint64_t>(t);
@@ -133,13 +132,13 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 			
 			if((time2-now) % 20 == 0 && (time2 - now) > 0){
 				// update block we are 'mining' on top of 
-				auto newBlock = blockchain->generateVerifyingBlock(pubKey);
+				auto newBlock = this->blockchain->generateVerifyingBlock(pubKey);
 				if(newBlock.getPreviousBlockId() != previousBlockId) {
 				    previousBlockId = block.getPreviousBlockId();
-                    previousBlock = this->blockchain->getBlockDB(
+				    previousBlock = this->blockchain->getBlockDB(
 					    block.getPreviousBlockId().toString());
-                    height = block.getHeight();
-                    blockId = block.getId();
+                    		    height = block.getHeight();
+                                    blockId = block.getId();
 				    consensusDataThisBlock = block.getConsensusData();
 				    consensusDataPreviousBlock = previousBlock.getConsensusData();
 				    totalWorkPrev = CryptoKernel::BigNum(
@@ -150,26 +149,27 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 			}
 			// check to see if any of our staked outputs are selected
 			for( auto const& entry :  stakedOutputValues ){
-				// only check the ones that can be staked
+				// only check the outputs that can be staked
 				std::string outputId = entry.first;
 				if( !this->canBeStaked[outputId] ){
 					continue;
 				}
 
 				uint64_t value = entry.second;
-				uint64_t age = height - this->heightLastStaked[outputId];
+				uint64_t outputHeightLastStaked = this->heightLastStaked[outputId];
+				uint64_t age = height - outputHeightLastStaked;
 				CryptoKernel::BigNum stakeConsumed = 
 					this->calculateStakeConsumed(age, value);
-				selectionValue = 
-					this->selectionFunction(blockId, time2, outputId);
+				CryptoKernel::BigNum hash = 
+					this->calculateHash(blockId, time2, outputId);
 				// output selected
-				if( selectionValue < target * stakeConsumed) { 
+				if( hash < target * stakeConsumed) { 
 				        consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
                                         consensusDataThisBlock["target"] = (target).toString();
                                         consensusDataThisBlock["totalWork"] = (CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - (target) + totalWorkPrev).toString();
                                         consensusDataThisBlock["pubKey"] = pubKey;
                                         consensusDataThisBlock["outputId"] = outputId;
-                                        consensusDataThisBlock["outputAge"] = this->heightLastStaked[outputId];
+                                        consensusDataThisBlock["outputHeightLastStaked"] = outputHeightLastStaked;
 					consensusDataThisBlock["outputValue"] = value;
 					consensusDataThisBlock["timestamp"] = time2;
                                         // TODO - sign here
@@ -197,7 +197,9 @@ bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction*
 		CryptoKernel::Blockchain::block block = this->blockchain->getBlock(transaction, "tip");
 		height = block.getHeight()+1;
 	} catch (const CryptoKernel::Blockchain::NotFoundException& e) {
-		
+		// height of the genesis block, which 
+		// has no "tip" should be 1 so make sure this 
+		// edge case is handled correctly
 	}
 	
 	// mark all outputids so they cannot be staked again
@@ -217,7 +219,7 @@ bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction*
 		this->canBeStaked[outputId.toString()] = true;
 		// if this the pubKey we are mining for, add it to the stake pool
 		if( pubKey ==  outputPubKey ){
-			stakedOutputValues[outputId.toString()] = output.getValue();
+			this->stakedOutputValues[outputId.toString()] = output.getValue();
 		}
 	}
 
@@ -231,7 +233,7 @@ bool CryptoKernel::Consensus::PoSNaive::submitTransaction(Storage::Transaction *
 bool CryptoKernel::Consensus::PoSNaive::submitBlock(Storage::Transaction *transaction, const CryptoKernel::Blockchain::block& block){
 	CryptoKernel::Consensus::PoSNaive::ConsensusData blockData = CryptoKernel::Consensus::PoSNaive::getConsensusData(block);
 	// update the height of the consumed output
-	heightLastStaked[blockData.outputId] = block.getHeight();
+	this->heightLastStaked[blockData.outputId] = block.getHeight();
 	return true;	
 };
 
@@ -275,7 +277,7 @@ CryptoKernel::Consensus::PoSNaive::ConsensusData CryptoKernel::Consensus::PoSNai
 		cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());
 		cd.pubKey = cj["pubKey"].asString();
 		cd.outputId = cj["outputId"].asString();
-		cd.outputAge = cj["outputAge"].asUInt64();
+		cd.outputHeightLastStaked  = cj["outputHeightLastStaked"].asUInt64();
 		cd.outputValue = cj["outputValue"].asUInt64();
 		cd.timestamp = cj["timestamp"].asUInt64();
 		cd.signature = cj["signature"].asString();
@@ -294,7 +296,7 @@ CryptoKernel::Consensus::PoSNaive::ConsensusData CryptoKernel::Consensus::PoSNai
                 cd.totalWork = CryptoKernel::BigNum(cj["totalWork"].asString());                        
 		cd.pubKey = cj["pubKey"].asString();
                 cd.outputId = cj["outputId"].asString();
-		cd.outputAge = cj["outputAge"].asUInt64();
+		cd.outputHeightLastStaked = cj["outputHeightLastStaked"].asUInt64();
 		cd.outputValue = cj["outputValue"].asUInt64();
 		cd.timestamp = cj["timestamp"].asUInt64();
 		cd.signature = cj["signature"].asString();
@@ -311,7 +313,7 @@ Json::Value CryptoKernel::Consensus::PoSNaive::consensusDataToJson(const CryptoK
 	consensusDataAsJson["totalWork"] = cd.totalWork.toString();
 	consensusDataAsJson["pubKey"] = cd.pubKey;
 	consensusDataAsJson["outputId"] = cd.outputId;
-	consensusDataAsJson["outputAge"] = cd.outputAge;
+	consensusDataAsJson["outputHeightLastStaked"] = cd.outputHeightLastStaked;
 	consensusDataAsJson["outputValue"] = cd.outputValue; 
 	consensusDataAsJson["timestamp"] = cd.timestamp;
 	consensusDataAsJson["signature"] = cd.signature;
@@ -412,7 +414,7 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoSNaive::calculateTarget(Storage:
     }
 };
 
-CryptoKernel::BigNum CryptoKernel::Consensus::PoSNaive::selectionFunction(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
+CryptoKernel::BigNum CryptoKernel::Consensus::PoSNaive::calculateHash(const CryptoKernel::BigNum& blockId, const uint64_t timestamp, const std::string& outputId){
 	std::stringstream buffer;
 	buffer << blockId.toString() << timestamp << outputId;
 	CryptoKernel::Crypto crypto;
