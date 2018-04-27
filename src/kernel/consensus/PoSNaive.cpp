@@ -164,16 +164,16 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 					this->calculateHash(blockId, time2, outputId);
 				// output selected
 				if( hash < target * stakeConsumed) { 
-				        consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
-                                        consensusDataThisBlock["target"] = (target).toString();
-                                        consensusDataThisBlock["totalWork"] = (CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - (target) + totalWorkPrev).toString();
-                                        consensusDataThisBlock["pubKey"] = pubKey;
-                                        consensusDataThisBlock["outputId"] = outputId;
-                                        consensusDataThisBlock["outputHeightLastStaked"] = outputHeightLastStaked;
+					consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
+					consensusDataThisBlock["target"] = (target).toString();
+					consensusDataThisBlock["totalWork"] = (CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - (target) + totalWorkPrev).toString();
+					consensusDataThisBlock["pubKey"] = pubKey;
+					consensusDataThisBlock["outputId"] = outputId;
+					consensusDataThisBlock["outputHeightLastStaked"] = outputHeightLastStaked;
 					consensusDataThisBlock["outputValue"] = value;
 					consensusDataThisBlock["timestamp"] = time2;
-                                        // TODO - sign here
-                                        consensusDataThisBlock["signature"] = "";
+					// TODO - sign here
+					consensusDataThisBlock["signature"] = "";
 					block.setConsensusData(consensusDataThisBlock);
 					this->blockchain->submitBlock(block);
 					blockMined = true;
@@ -421,4 +421,22 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoSNaive::calculateHash(const Cryp
 	return CryptoKernel::BigNum(crypto.sha256(buffer.str()));
 };
 
+std::tuple<uint64_t, bool> 
+CryptoKernel::Consensus::PoSNaive::getStakeState(Storage::Transaction* transaction, 
+	                             			 	 const std::string& key) {
+	const Json::Value res = this->blockchain->consensusGet(transaction, key);
+	if(!res.isArray()) {
+		return std::make_tuple<uint64_t, bool> (0, false);
+	} else {
+		return std::make_tuple<uint64_t, bool> (res[0].asUInt64(), res[1].asBool());
+	}
+}
 
+void CryptoKernel::Consensus::PoSNaive::setStakeState(Storage::Transaction* transaction, 
+							 						  const std::string& key, 
+							 						  const std::tuple<uint64_t, bool>& value) {
+	Json::Value payload;
+	payload.append(std::get<0>(value));
+	payload.append(std::get<1>(value));
+	this->blockchain->consensusPut(transaction, key, payload);
+}

@@ -78,6 +78,12 @@ private:
 	std::unordered_map<std::string, uint64_t> heightLastStaked;
 	std::unordered_map<std::string, bool> canBeStaked;
 
+	std::tuple<uint64_t, bool> getStakeState(Storage::Transaction* transaction, 
+	                             			 const std::string& key);
+	void setStakeState(Storage::Transaction* transaction, 
+					   const std::string& key, 
+					   const std::tuple<uint64_t, bool>& value);
+
 	/* Consensus data that is actually stored in the blockchain */	
 	struct ConsensusData{
 		CryptoKernel::BigNum stakeConsumed;
