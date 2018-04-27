@@ -241,7 +241,7 @@ void CryptoKernel::Consensus::PoSNaive::reverseBlock(Storage::Transaction *trans
 	const CryptoKernel::Blockchain::block& tip = this->blockchain->getBlock(transaction, "tip");
 	const Json::Value consensusDataJson = tip.getConsensusData();
 	// first "unstake" the output that stakes this block
-	this->heightLastStaked[consensusDataJson["outputId"].asString()] = consensusDataJson["outputAge"].asUInt64();
+	this->heightLastStaked[consensusDataJson["outputId"].asString()] = consensusDataJson["outputHeightLastStaked"].asUInt64();
 	std::set<CryptoKernel::Blockchain::transaction> transactions = tip.getTransactions();
 	for( const auto& transaction : transactions ) {
 		std::set<CryptoKernel::Blockchain::input> inputs = transaction.getInputs();
