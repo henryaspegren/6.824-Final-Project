@@ -338,7 +338,7 @@ public:
     dbOutput getOutputDB(Storage::Transaction* dbTx, const std::string& id);
 
     input getInput(Storage::Transaction* dbTx, const std::string& id);
-
+    
     std::set<output> getUnspentOutputs(const std::string& publicKey);
 
     std::set<output> getSpentOutputs(const std::string& publicKey);
@@ -361,6 +361,7 @@ public:
 
     Json::Value consensusGet(Storage::Transaction* dbTx, const std::string& key);
     void consensusPut(Storage::Transaction* dbTx, const std::string& key, const Json::Value& value);
+    void consensusErase(Storage::Transaction* dbTx, const std::string& key);
 
 private:
     std::unique_ptr<Storage::Table> blocks;

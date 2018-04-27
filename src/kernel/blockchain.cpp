@@ -42,6 +42,7 @@ CryptoKernel::Blockchain::Blockchain(CryptoKernel::Log* GlobalLog,
     candidates.reset(new CryptoKernel::Storage::Table("candidates"));
     consensusTable.reset(new CryptoKernel::Storage::Table("consensus"));
     log = GlobalLog;
+    generator.seed(std::time(nullptr));
 }
 
 bool CryptoKernel::Blockchain::loadChain(CryptoKernel::Consensus* consensus,
@@ -900,6 +901,11 @@ Json::Value CryptoKernel::Blockchain::consensusGet(Storage::Transaction* dbTx, c
 void CryptoKernel::Blockchain::consensusPut(Storage::Transaction* dbTx, const std::string& key, const Json::Value& value) {
     std::lock_guard<std::recursive_mutex> lock(chainLock);
     consensusTable->put(dbTx, key, value);
+}
+
+void CryptoKernel::Blockchain::consensusErase(Storage::Transaction* dbTx, const std::string& key) {
+    std::lock_guard<std::recursive_mutex> lock(chainLock);
+    consensusTable->erase(dbTx, key);
 }
 
 CryptoKernel::Blockchain::Mempool::Mempool() {

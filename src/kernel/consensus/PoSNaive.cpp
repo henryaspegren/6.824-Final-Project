@@ -37,8 +37,11 @@ bool CryptoKernel::Consensus::PoSNaive::checkConsensusRules(Storage::Transaction
 		const CryptoKernel::Blockchain::output output = this->blockchain->getOutput(transaction, blockData.outputId);
 		const uint64_t outputValue = output.getValue();
 		const Json::Value outputData = output.getData();
-		const uint64_t outputHeightLastStaked  = this->heightLastStaked[blockData.outputId];
-		const bool outputCanBeStaked = this->canBeStaked[blockData.outputId];
+
+		const auto stakeState = getStakeState(transaction, blockData.outputId);
+
+		const uint64_t outputHeightLastStaked = std::get<0>(stakeState);
+		const bool outputCanBeStaked = std::get<1>(stakeState);
 		const CryptoKernel::BigNum blockId = block.getId();
 	
 		// check that the output can be staked
@@ -147,16 +150,24 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 				    now = time2;
 				}
 			}
+
+			const auto outputs = this->blockchain->getUnspentOutputs(pubKey);
+
 			// check to see if any of our staked outputs are selected
-			for( auto const& entry :  stakedOutputValues ){
+			for( auto const& entry :  outputs ){
 				// only check the outputs that can be staked
-				std::string outputId = entry.first;
-				if( !this->canBeStaked[outputId] ){
+				const std::string outputId = entry.getId().toString();
+
+				std::unique_ptr<Storage::Transaction> dbTx(this->blockchain->getTxHandle());
+				const auto stakeState = getStakeState(dbTx.get(), outputId);
+				dbTx.reset();
+
+				if( !std::get<1>(stakeState) ) {
 					continue;
 				}
 
-				uint64_t value = entry.second;
-				uint64_t outputHeightLastStaked = this->heightLastStaked[outputId];
+				uint64_t value = entry.getValue();
+				uint64_t outputHeightLastStaked = std::get<0>(stakeState);
 				uint64_t age = height - outputHeightLastStaked;
 				CryptoKernel::BigNum stakeConsumed = 
 					this->calculateStakeConsumed(age, value);
@@ -207,7 +218,8 @@ bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction*
 	// us to re-stake them  
 	for( const auto& input : inputs ) {
 		CryptoKernel::BigNum outputId = input.getOutputId();
-		this->canBeStaked[outputId.toString()] = false;
+		const auto res = getStakeState(transaction, outputId.toString());
+		setStakeState(transaction, outputId.toString(), std::make_tuple(std::get<0>(res), false));
 	}
 
 	// add all outputids that have been created, recording height
@@ -215,12 +227,8 @@ bool CryptoKernel::Consensus::PoSNaive::confirmTransaction(Storage::Transaction*
 		CryptoKernel::BigNum outputId = output.getId();
 		Json::Value data = output.getData();
 		std::string outputPubKey = data["publicKey"].asString();
-		this->heightLastStaked[outputId.toString()] = height;
-		this->canBeStaked[outputId.toString()] = true;
-		// if this the pubKey we are mining for, add it to the stake pool
-		if( pubKey ==  outputPubKey ){
-			this->stakedOutputValues[outputId.toString()] = output.getValue();
-		}
+
+		setStakeState(transaction, outputId.toString(), std::make_tuple(height, true));
 	}
 
 	return true;
@@ -233,7 +241,11 @@ bool CryptoKernel::Consensus::PoSNaive::submitTransaction(Storage::Transaction *
 bool CryptoKernel::Consensus::PoSNaive::submitBlock(Storage::Transaction *transaction, const CryptoKernel::Blockchain::block& block){
 	CryptoKernel::Consensus::PoSNaive::ConsensusData blockData = CryptoKernel::Consensus::PoSNaive::getConsensusData(block);
 	// update the height of the consumed output
-	this->heightLastStaked[blockData.outputId] = block.getHeight();
+	
+	const auto res = getStakeState(transaction, blockData.outputId);
+	setStakeState(transaction, blockData.outputId, std::make_tuple(block.getHeight(),
+																   std::get<1>(res)));
+
 	return true;	
 };
 
@@ -241,24 +253,27 @@ void CryptoKernel::Consensus::PoSNaive::reverseBlock(Storage::Transaction *trans
 	const CryptoKernel::Blockchain::block& tip = this->blockchain->getBlock(transaction, "tip");
 	const Json::Value consensusDataJson = tip.getConsensusData();
 	// first "unstake" the output that stakes this block
-	this->heightLastStaked[consensusDataJson["outputId"].asString()] = consensusDataJson["outputHeightLastStaked"].asUInt64();
+
+	setStakeState(transaction, 
+				  consensusDataJson["outputId"].asString(), 
+				  std::make_tuple(consensusDataJson["outputHeightLastStaked"].asUInt64(), true));
+	
 	std::set<CryptoKernel::Blockchain::transaction> transactions = tip.getTransactions();
-	for( const auto& transaction : transactions ) {
-		std::set<CryptoKernel::Blockchain::input> inputs = transaction.getInputs();
-		std::set<CryptoKernel::Blockchain::output> outputs = transaction.getOutputs();
+	for( const auto& tx : transactions ) {
+		std::set<CryptoKernel::Blockchain::input> inputs = tx.getInputs();
+		std::set<CryptoKernel::Blockchain::output> outputs = tx.getOutputs();
 		// since the outputs are no longer spent
 		// mark them as stakeable
 		for( const auto& input : inputs ) {
-			std::string outputId = input.getOutputId().toString();
-			this->canBeStaked[outputId] = true;
+			const std::string outputId = input.getOutputId().toString();
+			const auto res = getStakeState(transaction, outputId);
+			setStakeState(transaction, outputId, std::make_tuple(std::get<0>(res), true));
 		}
 		// newly created outputs no longer exist
 		// so remove them entirely
 		for( const auto& output : outputs ){
-			std::string outputId = output.getId().toString();
-			this->heightLastStaked.erase(outputId);
-			this->canBeStaked.erase(outputId);
-			this->stakedOutputValues.erase(outputId);
+			const std::string outputId = output.getId().toString();
+			eraseStakeState(transaction, outputId);
 		}
 	}	
 			
@@ -439,4 +454,9 @@ void CryptoKernel::Consensus::PoSNaive::setStakeState(Storage::Transaction* tran
 	payload.append(std::get<0>(value));
 	payload.append(std::get<1>(value));
 	this->blockchain->consensusPut(transaction, key, payload);
+}
+
+void CryptoKernel::Consensus::PoSNaive::eraseStakeState(Storage::Transaction* transaction, 
+							 						    const std::string& key) {
+	this->blockchain->consensusErase(transaction, key);
 }

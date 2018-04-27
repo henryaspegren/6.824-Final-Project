@@ -70,19 +70,14 @@ private:
 	std::unique_ptr<std::thread> minerThread;
 	// the pubkey we are mining for 
 	std::string pubKey;
-	// our staked outputs and associated amounts
-	std::unordered_map<std::string, uint64_t> stakedOutputValues;
-	
-	/* Consensus critical data */	
-	// need to keep track of when an output was last staked
-	std::unordered_map<std::string, uint64_t> heightLastStaked;
-	std::unordered_map<std::string, bool> canBeStaked;
 
 	std::tuple<uint64_t, bool> getStakeState(Storage::Transaction* transaction, 
 	                             			 const std::string& key);
 	void setStakeState(Storage::Transaction* transaction, 
 					   const std::string& key, 
 					   const std::tuple<uint64_t, bool>& value);
+	void eraseStakeState(Storage::Transaction* transaction, 
+					     const std::string& key);
 
 	/* Consensus data that is actually stored in the blockchain */	
 	struct ConsensusData{
