@@ -1,24 +1,6 @@
 {
 	"coins" : 
 	[
-	    {
-			"blockdb" : "./blockdb",
-			"consensus" : 
-			{
-				"params" : 
-				{
-					"blocktime" : 150
-				},
-				"type" : "kgw_lyra2rev2"
-			},
-			"genesisblock" : "genesisblock.json",
-			"name" : "K320",
-			"peerdb" : "./peers",
-			"port" : 49000,
-			"rpcport" : 8383,
-			"subsidy" : "k320",
-			"walletdb" : "./addressesdb"
-        },
 		{
 			"blockdb" : "./posblockdb",
 			"consensus" : 
