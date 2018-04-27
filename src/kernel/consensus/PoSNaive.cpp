@@ -114,7 +114,6 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 		CryptoKernel::Blockchain::dbBlock previousBlock = this->blockchain->getBlockDB(
                         block.getPreviousBlockId().toString());
 		uint64_t height = block.getHeight();
-                CryptoKernel::BigNum blockId = block.getId();
 
 		t = std::time(0);
 		now = static_cast<uint64_t> (t);
@@ -137,11 +136,11 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 				// update block we are 'mining' on top of 
 				auto newBlock = this->blockchain->generateVerifyingBlock(pubKey);
 				if(newBlock.getPreviousBlockId() != previousBlockId) {
+					block = newBlock;
 				    previousBlockId = block.getPreviousBlockId();
 				    previousBlock = this->blockchain->getBlockDB(
-					    block.getPreviousBlockId().toString());
-                    		    height = block.getHeight();
-                                    blockId = block.getId();
+				    block.getPreviousBlockId().toString());
+                    height = block.getHeight();
 				    consensusDataThisBlock = block.getConsensusData();
 				    consensusDataPreviousBlock = previousBlock.getConsensusData();
 				    totalWorkPrev = CryptoKernel::BigNum(
@@ -172,9 +171,9 @@ void CryptoKernel::Consensus::PoSNaive::miner(){
 				CryptoKernel::BigNum stakeConsumed = 
 					this->calculateStakeConsumed(age, value);
 				CryptoKernel::BigNum hash = 
-					this->calculateHash(blockId, time2, outputId);
+					this->calculateHash(block.getId(), time2, outputId);
 				// output selected
-				if( hash < target * stakeConsumed) { 
+				if( hash <= target * stakeConsumed) { 
 					consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
 					consensusDataThisBlock["target"] = (target).toString();
 					consensusDataThisBlock["totalWork"] = (CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") - (target) + totalWorkPrev).toString();
