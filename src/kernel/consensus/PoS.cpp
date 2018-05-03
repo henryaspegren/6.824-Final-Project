@@ -333,11 +333,11 @@ bool CryptoKernel::Consensus::PoS::confirmTransaction(Storage::Transaction* tran
 	for( const auto& output : outputs ) {
 		CryptoKernel::BigNum outputId = output.getId();
 		Json::Value data = output.getData();
-		// TODO - @James please make sure this doesn't error if 
-		//		the output doesn't actually commit or pay2pubkey
-		std::string outputPubKey = data["publicKey"].asString();
-		std::string rPointCommitment = data["rPointCommitment"].asString();
-		setStakeState(transaction, outputId.toString(), std::make_tuple(height, rPointCommitment, true));
+		if(data["publicKey"].isString() && data["rPointCommitment"].isString()) {
+			std::string outputPubKey = data["publicKey"].asString();
+			std::string rPointCommitment = data["rPointCommitment"].asString();
+			setStakeState(transaction, outputId.toString(), std::make_tuple(height, rPointCommitment, true));
+		}
 	}
 
 	return true;
