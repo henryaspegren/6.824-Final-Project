@@ -74,6 +74,11 @@ private:
 	std::unique_ptr<std::thread> minerThread;
 	// the pubKey we use to get staked outputs
 	std::string pubKey;
+
+	std::string privKey;
+
+	schnorr_context* ctx;
+
 	// stake state = [output height last staked, 
 	//		  R point commitment (equivocation protection), 
 	//	        	can be staked]
