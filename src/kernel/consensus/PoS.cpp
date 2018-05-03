@@ -24,8 +24,8 @@ CryptoKernel::Consensus::PoS::~PoS(){
 bool CryptoKernel::Consensus::PoS::isBlockBetter(Storage::Transaction* transaction,
 	const CryptoKernel::Blockchain::block& block, 
 	const CryptoKernel::Blockchain::dbBlock& tip){
-	const CryptoKernel::Consensus::PoSNaive::ConsensusData blockData = this->getConsensusData(block);
-	const CryptoKernel::Consensus::PoSNaive::ConsensusData tipData = this->getConsensusData(tip);	
+	const CryptoKernel::Consensus::PoS::ConsensusData blockData = this->getConsensusData(block);
+	const CryptoKernel::Consensus::PoS::ConsensusData tipData = this->getConsensusData(tip);	
 	return  blockData.totalWork > tipData.totalWork;
 };
 
@@ -170,7 +170,7 @@ void CryptoKernel::Consensus::PoS::miner(){
 
 				uint64_t value = entry.getValue();
 				uint64_t outputHeightLastStaked = std::get<0>(stakeState);
-				std::string rPointCommitment = std::get<2>(stakeState);
+				std::string rPointCommitment = std::get<1>(stakeState);
 				uint64_t age = height - outputHeightLastStaked;
 				CryptoKernel::BigNum stakeConsumed = 
 					this->calculateStakeConsumed(age, value);
@@ -254,14 +254,14 @@ bool CryptoKernel::Consensus::PoS::submitBlock(Storage::Transaction *transaction
 	CryptoKernel::Consensus::PoS::ConsensusData blockData = CryptoKernel::Consensus::PoS::getConsensusData(block);
 	// update the stake height and R point 
 	uint64_t newHeightLastStaked = block.getHeight();
-	std::string newRPointCommitment = blockData.newRpointCommitment;
+	std::string newRPointCommitment = blockData.newRPointCommitment;
 	// output may have been spent, so we still do a DB lookup
 	// to ensure that the stake state reflects this
 	const auto res = getStakeState(transaction, blockData.outputId);
-	setStakeState(transaction, blockData.outputId, 
-			std::make_tuple(newHeightLastStaked, 
+	const auto newState = std::make_tuple(newHeightLastStaked, 
 					newRPointCommitment,
-					std::get<1>(res)));
+					std::get<2>(res));
+	setStakeState(transaction, blockData.outputId, newState);
 
 	return true;	
 };
@@ -274,7 +274,7 @@ void CryptoKernel::Consensus::PoS::reverseBlock(Storage::Transaction *transactio
 	this->setStakeState(transaction, 
 				  consensusDataJson["outputId"].asString(), 
 				  std::make_tuple(consensusDataJson["outputHeightLastStaked"].asUInt64(),
-						  consensusDataJson["currentRPointCommitment"].asString()));
+						  consensusDataJson["currentRPointCommitment"].asString(), true));
 	
 	std::set<CryptoKernel::Blockchain::transaction> transactions = tip.getTransactions();
 	for( const auto& tx : transactions ) {
@@ -285,7 +285,7 @@ void CryptoKernel::Consensus::PoS::reverseBlock(Storage::Transaction *transactio
 		for( const auto& input : inputs ) {
 			const std::string outputId = input.getOutputId().toString();
 			const auto res = this->getStakeState(transaction, outputId);
-			this->setStakeState(transaction, outputId, std::make_tuple(std::get<0>(res), std::get<1>(res), false);
+			this->setStakeState(transaction, outputId, std::make_tuple(std::get<0>(res), std::get<1>(res), false));
 		}
 		// newly created outputs no longer exist
 		// so remove them entirely
@@ -302,7 +302,7 @@ void CryptoKernel::Consensus::PoS::start(){
 };
 
 CryptoKernel::Consensus::PoS::ConsensusData CryptoKernel::Consensus::PoS::getConsensusData(const CryptoKernel::Blockchain::block& block){
-	CryptoKernel::Consensus::PoSNaive::ConsensusData cd;
+	CryptoKernel::Consensus::PoS::ConsensusData cd;
 	const Json::Value cj = block.getConsensusData();
 	try {
 		cd.stakeConsumed = CryptoKernel::BigNum(cj["stakeConsumed"].asString());
@@ -380,7 +380,7 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoS::calculateTarget(Storage::Tran
         	CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
    	CryptoKernel::Blockchain::dbBlock currentBlock = blockchain->getBlockDB(transaction,
         	    previousBlockId.toString());
-    	CryptoKernel::Consensus::PoSNaive::ConsensusData currentBlockData = 
+    	CryptoKernel::Consensus::PoS::ConsensusData currentBlockData = 
 		this->getConsensusData(currentBlock);
    	CryptoKernel::Blockchain::dbBlock lastSolved = currentBlock;
  	if(currentBlock.getHeight() < minBlocks) {

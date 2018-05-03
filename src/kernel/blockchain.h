@@ -535,6 +535,7 @@ public:
     class AVRR;
     class Raft;
     class PoSNaive;
+    class PoS;
 };
 }
 
