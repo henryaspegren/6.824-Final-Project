@@ -1,7 +1,10 @@
 #include <sstream>
 #include <math.h>
 
+#include <cschnorr/signature.h>
+
 #include "PoS.h"
+#include "base64.h"
 #include "../crypto.h"
 
 CryptoKernel::Consensus::PoS::PoS(const uint64_t blockTarget,
@@ -14,11 +17,13 @@ CryptoKernel::Consensus::PoS::PoS(const uint64_t blockTarget,
 	this->amountWeight = amountWeight;
 	this->ageWeight = ageWeight;
 	this->pubKey = pubKey;
+	this->ctx = schnorr_context_new();
 };
 
 CryptoKernel::Consensus::PoS::~PoS(){
 	this->run_miner = false;
 	this->minerThread->join();
+	schnorr_context_free(this->ctx);
 };
 
 bool CryptoKernel::Consensus::PoS::isBlockBetter(Storage::Transaction* transaction,
@@ -92,7 +97,43 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		// TODO - check timestamp here?
 
 		// TODO - check signature here?
+		committed_r_pubkey pub;
+		pub.A = EC_POINT_new(ctx->group);
+		const auto decodedR = base64_decode(blockData.currentRPointCommitment);
+		if(decodedR.size() != 32) {
+			return false;
+		}
+
+		memcpy(pub.r, reinterpret_cast<const unsigned char*>(decodedR.c_str()), 32);
+
+		const auto decodedPub = base64_decode(blockData.pubKey);
+		if(decodedPub.size() != 33) {
+			return false;
+		}
+
+		if(EC_POINT_oct2point(ctx->group, pub.A, reinterpret_cast<const unsigned char*>(decodedPub.c_str()), 33, ctx->bn_ctx) != 1) {
+			return false;
+		}
+
+		committed_r_sig sig;
+		sig.s = NULL;
+
+		const auto decodedS = base64_decode(blockData.signature);
+		if(decodedS.size() != 32) {
+			return false;
+		}
+
+		if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedS.c_str()), 32, sig.s) != NULL) {
+			return false;
+		}
+
+		if(committed_r_verify(ctx, &sig, &pub, reinterpret_cast<const unsigned char*>(hash.toString().c_str()), hash.toString().size()) != 1) {
+			return false;
+		}
 		
+		BN_free(sig.s);
+		EC_POINT_free(pub.A);
+
 		return true;
 	} catch(const CryptoKernel::Blockchain::InvalidElementException& e) {
 		return false;
@@ -188,9 +229,65 @@ void CryptoKernel::Consensus::PoS::miner(){
 					consensusDataThisBlock["currentRPointCommitment"] = rPointCommitment;
 					consensusDataThisBlock["timestamp"] = time2;
 					// TODO - commit to new R pt
-					consensusDataThisBlock["newRPointCommitment"] = "some new cmt";
+
+					// Generate new R point
+					committed_r_key* newKey = committed_r_key_new(ctx);
+
+					// Copy our private key
+					const auto decodedA = base64_decode(privKey);
+					if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedA.c_str()), 32, newKey->a) == NULL) {
+						throw std::runtime_error("Error decoding private key");
+					}
+					
+					// Save new point
+					std::ifstream f;
+					f.open("rpoint.key");
+					std::string k((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+					f.close();
+
+					const auto decodedK = base64_decode(k);
+					if(decodedK.size() != 32) {
+						throw std::runtime_error("Failure decoding k value");
+					}
+
+					unsigned char* newk = new unsigned char[32];
+					if(BN_bn2binpad(newKey->k, newk, 32) != 32) {
+						throw std::runtime_error("Failure encoding k value");
+					}
+
+					std::ofstream of;
+					of.open("rpoint.key");
+					of << base64_encode(newk, 32);
+					of.close();
+
+					delete[] newk;
+
+					consensusDataThisBlock["newRPointCommitment"] = base64_encode(reinterpret_cast<unsigned char*>(&newKey->pub->r), 32);
 					// TODO - sign - prove R
-					consensusDataThisBlock["signature"] = "";
+
+					const auto decodedOldK = base64_decode(rPointCommitment);
+					memcpy(newKey->pub->r, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 32);
+
+					if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedK.c_str()), 32, newKey->k) == NULL) {
+						throw std::runtime_error("Failure decoding k value");
+					}
+
+					committed_r_sig* sig;
+					if(committed_r_sign(ctx, &sig, newKey, reinterpret_cast<const unsigned char*>(hash.toString().c_str()), hash.toString().size()) != 1) {
+						throw std::runtime_error("Failure signing block");
+					}
+
+					unsigned char* s = new unsigned char[32];
+					if(BN_bn2binpad(sig->s, s, 32) != 32) {
+						throw std::runtime_error("Failure encoding signature");
+					}
+
+					consensusDataThisBlock["signature"] = base64_encode(s, 32);
+
+					delete[] s;
+					committed_r_sig_free(sig);
+					committed_r_key_free(newKey);
+
 					block.setConsensusData(consensusDataThisBlock);
 					this->blockchain->submitBlock(block);
 					blockMined = true;
@@ -236,11 +333,11 @@ bool CryptoKernel::Consensus::PoS::confirmTransaction(Storage::Transaction* tran
 	for( const auto& output : outputs ) {
 		CryptoKernel::BigNum outputId = output.getId();
 		Json::Value data = output.getData();
-		// TODO - @James please make sure this doesn't error if 
-		//		the output doesn't actually commit or pay2pubkey
-		std::string outputPubKey = data["publicKey"].asString();
-		std::string rPointCommitment = data["rPointCommitment"].asString();
-		setStakeState(transaction, outputId.toString(), std::make_tuple(height, rPointCommitment, true));
+		if(data["publicKey"].isString() && data["rPointCommitment"].isString()) {
+			std::string outputPubKey = data["publicKey"].asString();
+			std::string rPointCommitment = data["rPointCommitment"].asString();
+			setStakeState(transaction, outputId.toString(), std::make_tuple(height, rPointCommitment, true));
+		}
 	}
 
 	return true;
