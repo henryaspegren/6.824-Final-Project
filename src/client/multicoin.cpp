@@ -2,6 +2,7 @@
 
 #include "consensus/PoW.h"
 #include "consensus/PoSNaive.h"
+#include "consensus/PoS.h"
 
 CryptoKernel::MulticoinLoader::MulticoinLoader(const std::string& configFile,
                                                Log* log,
@@ -120,16 +121,28 @@ std::unique_ptr<CryptoKernel::Consensus> CryptoKernel::MulticoinLoader::getConse
                                                  config["miner"].asBool(),
                                                  config["pubKey"].asString()));
     } else if(name == "pos_naive") {
-        CryptoKernel::BigNum amountWeight(params["amountWeight"].asString());
-        CryptoKernel::BigNum ageWeight(params["ageWeight"].asString());
+        const CryptoKernel::BigNum amountWeight(params["amountWeight"].asString());
+        const CryptoKernel::BigNum ageWeight(params["ageWeight"].asString());
 
         return std::unique_ptr<CryptoKernel::Consensus>(
-                new Consensus::PoSNaive(params["blocktime"].asUInt64(), 
-                                                    blockchain, 
-                                                    config["miner"].asBool(), 
-                                                    amountWeight, 
-                                                    ageWeight, 
+                new Consensus::PoSNaive(params["blocktime"].asUInt64(),
+                                                    blockchain,
+                                                    config["miner"].asBool(),
+                                                    amountWeight,
+                                                    ageWeight,
                                                     config["pubKey"].asString()));
+    } else if(name == "pos") {
+        const CryptoKernel::BigNum amountWeight(params["amountWeight"].asString());
+        const CryptoKernel::BigNum ageWeight(params["ageWeight"].asString());
+
+        return std::unique_ptr<CryptoKernel::Consensus>(
+                new Consensus::PoS(params["blocktime"].asUInt64(),
+                                   blockchain,
+                                   config["miner"].asBool(),
+                                   amountWeight,
+                                   ageWeight,
+                                   config["pubKey"].asString(),
+                                   config["privKey"].asString()));
     } else {
         throw std::runtime_error("Unknown consensus algorithm " + name);
     }

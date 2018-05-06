@@ -159,6 +159,7 @@
 			<Add option="-ljsoncpp" />
 			<Add option="-lsfml-system" />
 			<Add option="-lsfml-network" />
+			<Add option="-lcschnorr" />
 		</Linker>
 		<Unit filename="compiler.lua">
 			<Option target="&lt;{~None~}&gt;" />
@@ -169,56 +170,16 @@
 		<Unit filename="sandbox.lua">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="src/client/cryptoclient.h">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/cryptoserver.h">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/httpserver.cpp">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/httpserver.h">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/main.cpp">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/multicoin.cpp">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/multicoin.h">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/rpcserver.cpp">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/wallet.cpp">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
-		<Unit filename="src/client/wallet.h">
-			<Option target="Debug-Client-Unix" />
-			<Option target="Debug-Client-Windows" />
-			<Option target="Release-Client-Windows" />
-		</Unit>
+		<Unit filename="src/client/cryptoclient.h" />
+		<Unit filename="src/client/cryptoserver.h" />
+		<Unit filename="src/client/httpserver.cpp" />
+		<Unit filename="src/client/httpserver.h" />
+		<Unit filename="src/client/main.cpp" />
+		<Unit filename="src/client/multicoin.cpp" />
+		<Unit filename="src/client/multicoin.h" />
+		<Unit filename="src/client/rpcserver.cpp" />
+		<Unit filename="src/client/wallet.cpp" />
+		<Unit filename="src/client/wallet.h" />
 		<Unit filename="src/kernel/base64.cpp" />
 		<Unit filename="src/kernel/base64.h" />
 		<Unit filename="src/kernel/blockchain.cpp" />
@@ -261,6 +222,10 @@
 		<Unit filename="src/kernel/consensus/Lyra2REv2/sha3/sph_keccak.h" />
 		<Unit filename="src/kernel/consensus/Lyra2REv2/sha3/sph_skein.h" />
 		<Unit filename="src/kernel/consensus/Lyra2REv2/sha3/sph_types.h" />
+		<Unit filename="src/kernel/consensus/PoS.cpp" />
+		<Unit filename="src/kernel/consensus/PoS.h" />
+		<Unit filename="src/kernel/consensus/PoSNaive.cpp" />
+		<Unit filename="src/kernel/consensus/PoSNaive.h" />
 		<Unit filename="src/kernel/consensus/PoW.cpp" />
 		<Unit filename="src/kernel/consensus/PoW.h" />
 		<Unit filename="src/kernel/contract.cpp" />
