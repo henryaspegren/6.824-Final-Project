@@ -1,5 +1,6 @@
 #include <sstream>
 #include <math.h>
+#include <iostream>
 
 #include <cschnorr/signature.h>
 
@@ -101,19 +102,22 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		// TODO - check signature here?
 		committed_r_pubkey pub;
 		pub.A = EC_POINT_new(ctx->group);
+		pub.R = EC_POINT_new(ctx->group);
 		const auto decodedR = base64_decode(blockData.currentRPointCommitment);
-		if(decodedR.size() != 32) {
+		if(decodedR.size() != 33) {
 			return false;
 		}
 
-		memcpy(pub.r, reinterpret_cast<const unsigned char*>(decodedR.c_str()), 32);
+		if(EC_POINT_oct2point(ctx->group, pub.R, reinterpret_cast<const unsigned char*>(decodedR.c_str()), 33, ctx->bn_ctx) != 1) {
+			return false;
+		}
 
 		const auto decodedPub = base64_decode(blockData.pubKey);
-		if(decodedPub.size() != 33) {
+		if(decodedPub.size() != 65) {
 			return false;
 		}
 
-		if(EC_POINT_oct2point(ctx->group, pub.A, reinterpret_cast<const unsigned char*>(decodedPub.c_str()), 33, ctx->bn_ctx) != 1) {
+		if(EC_POINT_oct2point(ctx->group, pub.A, reinterpret_cast<const unsigned char*>(decodedPub.c_str()), 65, ctx->bn_ctx) != 1) {
 			return false;
 		}
 
@@ -125,7 +129,7 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 			return false;
 		}
 
-		if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedS.c_str()), 32, sig.s) != NULL) {
+		if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedS.c_str()), 32, sig.s) == NULL) {
 			return false;
 		}
 
@@ -135,6 +139,7 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 
 		BN_free(sig.s);
 		EC_POINT_free(pub.A);
+		EC_POINT_free(pub.R);
 
 		return true;
 	} catch(const CryptoKernel::Blockchain::InvalidElementException& e) {
@@ -199,6 +204,8 @@ void CryptoKernel::Consensus::PoS::miner(){
 
 			// check to see if any of our staked outputs are selected
 			for( auto const& entry :  outputs ){
+				std::cout << "mining" << std::endl;
+
 				// only check the outputs that can be staked
 				const std::string outputId = entry.getId().toString();
 
@@ -264,27 +271,79 @@ void CryptoKernel::Consensus::PoS::miner(){
 
 					delete[] newk;
 
-					consensusDataThisBlock["newRPointCommitment"] = base64_encode(reinterpret_cast<unsigned char*>(&newKey->pub->r), 32);
+					unsigned char newR[33];
+                    if(EC_POINT_point2oct(ctx->group, newKey->pub->R, POINT_CONVERSION_COMPRESSED, reinterpret_cast<unsigned char*>(&newR), 33, ctx->bn_ctx) != 33) {
+						throw std::runtime_error("Failure encoding R point");
+                    }
+
+					consensusDataThisBlock["newRPointCommitment"] = base64_encode(reinterpret_cast<unsigned char*>(&newR), 33);
 					// TODO - sign - prove R
 
 					const auto decodedOldK = base64_decode(rPointCommitment);
-					memcpy(newKey->pub->r, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 32);
+
+					if(EC_POINT_oct2point(ctx->group, newKey->pub->R, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 33, ctx->bn_ctx) != 1) {
+						throw std::runtime_error("Failure decoding R point");
+					}
 
 					if(BN_bin2bn(reinterpret_cast<const unsigned char*>(decodedK.c_str()), 32, newKey->k) == NULL) {
 						throw std::runtime_error("Failure decoding k value");
 					}
 
 					committed_r_sig* sig;
-					if(committed_r_sign(ctx, &sig, newKey, reinterpret_cast<const unsigned char*>(hash.toString().c_str()), hash.toString().size()) != 1) {
+					if(committed_r_sign(ctx, &sig, newKey, reinterpret_cast<const unsigned char *>(hash.toString().c_str()), hash.toString().size()) != 1) {
 						throw std::runtime_error("Failure signing block");
 					}
 
-					unsigned char* s = new unsigned char[32];
-					if(BN_bn2binpad(sig->s, s, 32) != 32) {
-						throw std::runtime_error("Failure encoding signature");
+					const auto decodedPub = base64_decode(pubKey);
+					if(decodedPub.size() != 65) {
+						throw std::runtime_error("Failure decoding pubKey");
 					}
 
-					consensusDataThisBlock["signature"] = base64_encode(s, 32);
+					committed_r_pubkey pub;
+
+					pub.R = EC_POINT_new(ctx->group);
+
+					if(EC_POINT_oct2point(ctx->group, pub.R, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 33, ctx->bn_ctx) != 1) {
+						throw std::runtime_error("Failure decoding R point");
+					}
+
+					EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_secp256k1);
+					if(EC_KEY_oct2key(eckey, (unsigned char*)decodedPub.c_str(), (unsigned int)decodedPub.size(), ctx->bn_ctx) != 1) {
+						throw std::runtime_error("Failure decoding pubkey");
+					}
+
+					/*if(EC_POINT_oct2point(ctx->group, pub.A, reinterpret_cast<const unsigned char*>(decodedPub.c_str()), 65, ctx->bn_ctx) != 1) {
+						throw std::runtime_error("Failure decoding pubKey to point");
+					}*/
+
+					pub.A = EC_POINT_dup(EC_KEY_get0_public_key(eckey), ctx->group);
+
+					char* fromDSA = EC_POINT_point2hex(ctx->group, pub.A, POINT_CONVERSION_COMPRESSED, ctx->bn_ctx);
+
+					EC_POINT* A = EC_POINT_new(ctx->group);
+					if(EC_POINT_mul(ctx->group, A, NULL, ctx->G, newKey->a, ctx->bn_ctx) == 0) {
+						throw std::runtime_error("Failure generating public key");
+					}
+
+					char* Astr = EC_POINT_point2hex(ctx->group, A, POINT_CONVERSION_COMPRESSED, ctx->bn_ctx);
+
+					unsigned char* s = new unsigned char[32];
+					size_t val = BN_bn2binpad(sig->s, s, 32);
+					if(val != 32) {
+						throw std::runtime_error("Failure encoding signature " + std::to_string(BN_num_bytes(sig->s)));
+					}
+
+					if(BN_bin2bn(s, 32, sig->s) == NULL) {
+						throw std::runtime_error("Failure decoding sig");
+					}
+
+					if(committed_r_verify(ctx, sig, &pub, reinterpret_cast<const unsigned char *>(hash.toString().c_str()), hash.toString().size()) != 1) {
+						throw std::runtime_error("Failure verifying signature");
+					}
+
+
+					const auto str = base64_encode(s, 32);
+					consensusDataThisBlock["signature"] = str;
 
 					delete[] s;
 					committed_r_sig_free(sig);

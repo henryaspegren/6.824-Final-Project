@@ -16,11 +16,17 @@ int main() {
 		throw std::runtime_error("Failure encoding k value");
 	}
 
+    unsigned char* newR = new unsigned char[33];
+    if(EC_POINT_point2oct(ctx->group, newKey->pub->R, POINT_CONVERSION_COMPRESSED, newR, 33, ctx->bn_ctx) != 33) {
+        throw std::runtime_error("Failure encoding R point");
+    }  
+
     std::cout << "k: \n" << base64_encode(newk, 32) << "\n\n";
     
-    std::cout << "r: \n" << base64_encode(newKey->pub->r, 32) << "\n\n";
+    std::cout << "r: \n" << base64_encode(newR, 33) << "\n\n";
     
     delete[] newk;
+    delete[] newR;
     committed_r_key_free(newKey);
     schnorr_context_free(ctx);
     
