@@ -2,6 +2,11 @@
 %% should indent first paragraph in all sections for consistency
 \usepackage{indentfirst}
 \usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage[margin=1in]{geometry}
+
+
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
@@ -22,57 +27,119 @@
 
 \section{Introduction}
 
-Currently the most popular cryptocurrencies use Proof-of-Work. However this consensus mechanism consumes large amounts of energy: Bitcoin alone uses more energy than the entire country of Cuba \cite{energy}. Proof-of-Stake has been proposed as an energy-efficient alternative. In Proof-of-Stake, a single participant - the leader - is selected to add a block to the chain. Leaders are selected probabilistically in proportion to how much of the currency the leader has "staked". Ideally this "stake" constitutes a bond that the leader will lose if she "misbehaves." Realizing Proof-of-Stake in practice has been challenging. Indeed at the time of this writing, no Proof-of-Stake currency has ever achieved widespread adoption\footnote{As defined by being among the top 5 largest currencies by market cap}. 
+Currently the most popular cryptocurrencies use Proof-of-Work. However this consensus mechanism consumes large amounts of energy: Bitcoin alone uses more energy than the entire country of Cuba \cite{energy}. Proof-of-Stake has been proposed as an energy-efficient alternative. Much like Proof-of-Work, in Proof-of-Stake, a single participant known as the leader, staker or block proposer, is selected to add a block to the chain. Leaders are selected probabilistically in proportion to how much of the currency the leader has "staked". Ideally this "stake" constitutes a bond that the leader will lose if she "misbehaves." Realizing Proof-of-Stake in practice has been challenging. Indeed at the time of this writing, no Proof-of-Stake currency has ever achieved widespread adoption\footnote{As defined by being among the top 5 largest currencies by market cap}. 
 
-One of the main reasons for this is the \textit{Nothing-at-Stake} problem. In Proof-of-Work, proposing blocks to extend multiple, conflicting chains requires the consumption of valuable computational power and ultimately any work done on a chain rejected by the network is wasted. This creates a strong incentive for a rational to mine on only one chain - the chain that the network will eventually accept. However in existing Proof-of-Stake designs, the cost of producing a block is negligible. This implies that there is no computational mechanism to prevent a leader from equivocating and extending multiple competing chains. In fact this is may be the rational choice. The \textit{Nothing-at-Stake} problem presents a serious security issue because the network may lose consensus on the 'correct' chain. In this work we propose a novel Proof-of-Stake consensus protocol that solves this problem by cryptographically preventing equivocating. In our protocol, the leader can only extend the chain once and must consume a valuable, although non-computational resource to do so.
+One of the main reasons for this is called the \textit{Nothing-at-Stake} problem. In Proof-of-Work, proposing blocks to extend multiple, competing chains (called equivocation) requires the consumption of additional energy and computational resources with real-world cost linear with the number of chains being extended. So extending $ 5 $ simultaneous chains (and therefore system states, called equivocation) requires $ 5 $ times the real-world cost. Furthermore, any blocks that do not end up in the canonical chain do not receive any rewards and the cost of their production is permanently lost. This creates a strong incentive for a rational actor to mine on only one chain: the chain the network will eventually reach consensus on, where their mining rewards will be honored. However, in existing Proof-of-Stake designs, the real-world computational cost of producing a block is deliberately negligible. In Proof-of-Stake, voting power becomes proportional to the amount of money being staked and the time since that stake was last selected to produce a block rather than computational resources and energy expenditure. In practice it proves difficult to rely on abstract notions of "value" for consensus as opposed to universal invariants like the conservation of energy and standard hardness assumptions. 
+
+Since it is rational for a block proposer to extend many possible system states simultaneously in Proof-of-Stake, there is very little guarantee of eventual consistency when compared to Proof-of-Work. Any block proposer can trivially show equivalently valid system states to different clients or in the case of a staker (or group of stakers) at any point having a majority of the stake in the system, arbitrarily re-write long-established history. Existing Proof-of-Stake implementations have solved this problem by using a developer-operated coordinator (sometimes distributed) that endorses a canonical chain for clients to follow. In this work we propose a novel Proof-of-Stake consensus protocol that disincentivizes equivocation and does not require a centralized coordinator to operate. 
 
 \section{Related Work}
 
 \subsection{PeerCoin}
-PeerCoin \cite{peercoin} was the first attempt at a Proof-of-Stake cryptocurrency. \coin uses a consensus mechanism inspired by PeerCoin's original design. However because of the \textit{Nothing-at-Stake} problem PeerCoin uses a centralized "check-pointing" scheme. This is a major security concern since a corrupted check-pointing system is a single point of failure for the entire system.  
+PeerCoin \cite{peercoin} was the first attempt at a Proof-of-Stake cryptocurrency. \coin uses a consensus mechanism inspired by PeerCoin's original design. However because of the \textit{Nothing-at-Stake} problem PeerCoin uses a centralized "check-pointing" scheme. This is a major security concern since a corrupted check-pointing system is a single point of failure for the entire system and allows the developers to censor transactions or rewrite history.
 
 \subsection{Algorand}
-Algorand \cite{algorand} is another alternative to Proof-of-Work. However Algorand, as described by its authors, is not Proof-of-Stake and has a different security argument entirely. The security of Algorand depends on a Byzantine Agreement protocol that is run among a randomly selected set of participants. These participants are selected according to their coins, but there is no concept of a 'stake'. \coin is different from Algorand since it uses Proof-of-Stake and does not use a Byzantine Agreement protocol to achieve consensus.  
+Algorand \cite{algorand} is another alternative to Proof-of-Work. However Algorand, as described by its authors, is not Proof-of-Stake and has a different security argument entirely. The security of Algorand depends on a Byzantine Agreement protocol that is run among a randomly selected set of participants. In Algorand, "stake" can be used to determine the set of nodes in the system and their relative voting weights in the BA protocol.
 
 \section{\coin Consensus}
 
-In \coin, the consensus algorithm must determine the following:
+In any blockchain-based system, the consensus algorithm must determine the following:
 \begin{enumerate}
-\item{Who can propose the next block?}
-\item{Which chain do I follow?}
+\item{Who is allowed to propose a given block?}
+\item{Given multiple competing chains, which one should be followed?}
 \end{enumerate}
-As in Proof-of-Work, the process of adding a block by extending an existing chain performs these two roles. Since the network is decentralized - each participant makes decisions individually. However the entire network will maintain consensus under certain assumptions about the behavior of the individual participants. A sketch of the security argument for \coin will be presented in \ref{security}.
 
 \subsection{Joining the Stake Pool}
 
-To participate in the consensus algorithm, the participant (\textit{staker}) must create a special transaction that \textit{stakes} coins. This \textit{stake} constitutes a bond to the network that will be lost if the \textit{staker} equivocates and produces a block that extends multiple chains. The staking transaction consists of following:
+To participate in the consensus algorithm, the participant (\textit{staker}) must create a special transaction that \textit{stakes} coins. This \textit{stake} constitutes a bond to the network that could be lost if the \textit{staker} equivocates and broadcasts a block that extends multiple competing chains. The staking transaction consists of following:
 \begin{center}
-\textit{stake} = $\{value, R\_point\}$
+$tx = \{value, publicKey, R\_point\}$
 \end{center}
-The $value$ is the total number of coins staked and the $R\_Point$ is a cryptographic commitment. This cryptographic commitment has the useful property that if the \textit{staker} proposes a block for more than one chain it is possible to compute his private key. With knowledge of the private key, anyone can spend his coins. So if the \textit{staker} equivocates, he risks losing his stake entirely.
+The $value$ is the total number of coins staked, the $R\_Point$ is a cryptographic commitment and the $publicKey$ is the public key of the potential future spender of the output. Later in the paper we will use the R-point commitment to guard against equivocation. Once this transaction has been included in a block, the output's age will be initialized to $ 1 $ increase by $ 1 $ for every block after the inclusion block until the output is used to propose a block when its age resets to $ 1 $.
+
+This process contrasts to Proof-of-Work because it makes the system \textit{permissioned}. A potential staker needs to first have coins within the system and the ability to get their transactions included in the chain. Proof-of-Work only requires computational resources to participate and is thus \textit{permissionless}.
 
 \subsection{Selecting a Block Proposer}
 In Proof-of-Work, a miner (block proposer) can be anyone who can find a nonce such that 
 $$SHA256(block\_id || nonce) < target\_difficulty$$
-where $||$ is bitwise concatenation. The $target\_difficulty$ is a adjusted by the network as miners come and go to keep the rate of block generation relatively stable. 
-In \coin, a block proposer is selected according to their \textit{stake} rather than the ability to find a nonce. Instead a block proposer must meet the following criteria:  
-$$SHA256(block\_id || stake || current\_time) < target\_difficulty * (value \times age) $$ 
-where $value$ is the coin value of the \textit{stake} transaction and $age$ is the number of blocks that have passed since the \textit{stake} transaction was created. Note that there is no nonce involved and that the computation required is finite: it takes exactly one $SHA256$ hash per output per second to participate in the consensus protocol. By comparison, commercial Bitcoin miners easily churn through over 4 Billion $SHA256$ hashes per second, consuming orders of magnitude more energy. Additionally note that the older and more valuable the \textit{stake} transaction, the easier it is to propose a block. The calculation of $target\_difficulty$ in \coin is identical. 
+where $||$ is bitwise concatenation. The $target\_difficulty$ is regularly adjusted by the network as miners come and go to keep the rate of block generation stable over time. The target is increased as average block time increases to make the space of possible solutions larger, and decreased in the opposite case.
 
-\subsection{Reaching Consensus}
-In Proof-of-Work, the network achieves consensus on which chain by following the chain with the most 'total work'. 'Total work' in this context is the total amount of computational resources devoted to producing the chain. This can be calculated by adding together the $target\_difficulty$ for each block in the chain. In \coin, the network also follows with the chain with the most 'total work', which is also calculated by adding the target difficulty for each block in the chain. However in \coin this reflects the \textit{stake}s consumed to produce that chain not the computational work put into generating the chain. In other words the consensus algorithm follows the chain that was created using the oldest and most valuable outputs.  
+In \coin, a block proposer is selected according to randomness associated with their \textit{stake} rather than their ability to brute-force a valid nonce. Instead a block proposer must meet the following criteria:  
+$$SHA256(randomness || output\_id || block\_timestamp) < target\_difficulty * (value \times age) $$ 
+where $value$ is the coin value of the \textit{stake} output and $age$ is the number of blocks that have passed since the \textit{stake} transaction was created or previously used to propose a block. Note that there is no nonce involved and that the computation required is finite: it takes exactly one $SHA256$ hash per staked output per second to participate in the consensus protocol. By comparison, commercial Bitcoin miners easily churn through over 4 Billion $SHA256$ hashes per second, consuming orders of magnitude more energy. Additionally note that the older and more valuable the \textit{stake} transaction, the easier it is to propose a block. The calculation of $target\_difficulty$ in \coin is identical as in Proof-of-Work. 
+
+Selecting the source of $randomness$ requires careful thought for the system to be resistant to \textit{stake-grinding}. If the randomness source is too easy to malleate for the staker, they could permute the randomness many times to increase their chance of being selected as a block proposer. In that case the system would descend into Proof-of-Work and a competition over who can malleate and hash the fastest. In \coin we use the $ block\_id $ from $ max(1, n - 1000) $ blocks previously as the source of randomness with the assumption that with a well-distributed stake pool it will be difficult for a staker to have regular influence over a specific $block\_id$ from multiple days in the past. 
 
 \subsection{Preventing Equivocation}
-@JAMES HERE 
+Each block is required to be cryptographically signed by the owner of the private key associated with the public key of the output being staked. By using Committed R-point Signatures \cite{dlc} we are also able to use the signature to disincentivize equivocation. In a regular Schnorr signature we use a common \textit{generator point} $ G $ and a private scalar $ a $ to form a public/private key pair. The public key $ A $ is generated as follows:
+$$ A = aG $$
+
+Given $ A $ and $ G $ it is assumed impossible to generate the private key $ a $ due to the hardness of the \textit{discrete log problem}. To sign a message $ m $, one first generates another random private scalar $ r $ and calculates point $ R $.
+
+$$ R = rG $$
+
+followed by:
+
+$$ s = r - SHA256(m || R)a $$
+
+The signature then consists of $ (s, R) $ and can be verified to prove knowledge of the private key $ a $ using the public key as follows:
+
+$$ sG = R - SHA256(m || R)A $$
+$$ = rG - SHA256(m || R)aG$$
+
+Since we assume it is impossible to calculate $ a $ from $ aG = A $ and $ r $ from $ rG = R $ then the signing party must know both $ a $ and $ r $. It is important that the signer uses a unique and non-deterministic $ r $ for every message they sign or given two signatures $s_1, s_2$ and two messages $m_1, m_2$ signed with the same $ r $, one can compute both $ a $ and $ r $ by solving the two equations:
+
+$$ h_1 = SHA256(m_1 || R) $$
+$$ h_2 = SHA256(m_2 || R) $$
+
+$$ s_1 = r - h_1a $$
+$$ s_2 = r - h_2a $$
+
+$$ a = (h_1 - h_2)^{-1} * (s_2 - s_1) $$
+$$ r = s_2 + h_2a$$
+
+Similarly to in Discreet Log Contracts, we exploit this property of Schnorr signatures to prevent equivocation. If a staker signs and broadcasts two competing blocks using the same R-point they reveal their private key to the network effectively making their coins "spend-to-anyone" outputs. Any peer who notices equivocation would be able to claim the offenders coins as a punishment. Once a block has been broadcast using a pre-committed R-point, the coins cannot be safely staked again until a new R-point has been committed to by either specifying it in the block where the previous R-point was used or by spending the output and specifying a new R-point in a new output as  if entering the stake pool for the first time. This scheme requires that stakers pick one branch of a fork to stake on.
+
+\begin{figure}[!h]
+	\centering
+\begin{tikzcd}
+	R_1 committed \arrow[d] \arrow[rd] &  &  \\
+	- \arrow[d] & - \arrow[d] &  \\
+	R_1 signs \arrow[d] & - \arrow[d] &  \\
+	- & R_1 signs & PrivKey Revealed \arrow[l]
+\end{tikzcd}
+\end{figure}
+
+In the above example, the staker tried to equivocate but their private key is revealed once they bet on the second branch.
+
+\begin{figure}[!h]
+	\centering
+\begin{tikzcd}
+	& R_1 committed \arrow[d] \arrow[rd] &  \\
+	& - \arrow[d] & - \arrow[d] \\
+	StakeAge Forfeit \arrow[r] & R_2 committed \arrow[d] & - \arrow[d] \\
+	& R_2 signs & R_1 signs
+\end{tikzcd}
+\end{figure}
+ 
+ In the above example the staker \textit{does} equivocate successfully but this is an unlikely scenario in practice. When $ R_2 $ is committed to replace $ R_1 $, the staker forfeits all their stake-age for that output hence decreasing their probability of being selected as the next block proposer. Therefore it is highly unlikely that the output with $ R_2 $ committed will be selected before the chain where $ R_1 $ is used to sign has overtaken the alternative branch.
+ 
+\subsection{Reaching Consensus}
+In Proof-of-Work, the network achieves consensus on a canonical chain with the most 'total work'. 'Total work' in this context is the cumulative computational resources that produced the chain calculated as follows:
+
+$$ total\_work[n] = \sum_{height=1}^{n} UINT256\_MAX - target\_difficulty[height] $$
+
+In \coin, the network also follows with the chain with the most 'total work', which is calculated in an identical manner. However in \coin this implicitly reflects the cumulative stake-age consumed to produce the chain since each target is modulated according to the stake-age being consumed. In other words the consensus algorithm follows the chain that was created using the oldest and most valuable outputs cumulatively.  
+
 
 \section{Implementation}
-To implement \coin we used CryptoKernel \cite{ck}, a software package being developed by the Digital Currency Initiative for prototyping cryptocurrencies \footnote{James Lovejoy is the lead developer of CryptoKernel}. CryptoKernel provides out-of-the-box networking and storage code while allowing developers to implement their own consensus modules. We implemented \coin by creating a consensus module in CryptoKernel.
+To implement \coin we used CryptoKernel \cite{ck}, a software package being developed by the Digital Currency Initiative for rapid prototyping cryptocurrencies \footnote{James Lovejoy is the lead developer of CryptoKernel}. CryptoKernel provides out-of-the-box networking, storage and replicated state machine code while allowing developers to implement their own consensus modules and other features. We implemented \coin by creating a new consensus module for CryptoKernel.
 
 We have created a genesis block for \coin and are currently running several nodes that are all participating in the consensus process. Anyone can join the network and start using the protocol, using our reference implementation on Github \cite{6824coincode}. To join the network simply download the code in the repository and follow the instructions in the README.
 
-Because \coin selects block proposers based on the amount of stake a user has, we have had to think carefully about how distribute the initial coins. In our prototype there are no block rewards and all of the coins were initially given to the Authors. However we have implemented a faucet where you can post your public key and we will send you coins. Our goal is to distribute the vast majority of the coins to anyone who would like them. The faucet can be found at \url{cryptokernel.org/6824coinfaucet}.
+Because \coin selects block proposers based on the amount of stake a user has, we have had to think carefully about how distribute the initial coins. In our prototype there are no block rewards and all of the coins were initially given to the Authors. However we have implemented a faucet where you can post your public key and we will send you coins. Our goal is to distribute the vast majority of the coins to anyone who would like them. The faucet can be accessed by emailing the paper authors with public keys.
 
-One concern is that since initially we will have the vast majority of all coins, we will almost always get to propose the next blocks. In the short term we will avoid this situation by simply not staking some our our coins to deliberately reduce our chances of producing the next block. As others join the network using the faucet this will gradually become a non-issue. 
+In a real system it would be necessary to fairly and widely distribute the coins in the setup phase to ensure that no individual or cabal is able to acquire a majority of the stake. If the developers cannot be trusted to do this manually, having a period of Proof-of-Work to initialize the system and emit all the coins, then switching to Proof-of-Stake has been a popular solution.
 
 \section{Analysis}
 \large{ \color{red}  { \textbf{ WARNING the authors accept no responsibility for the security of \coin, and it may be insecure and you may lose all of your money } } } 
@@ -81,7 +148,9 @@ Analyzing the security of cryptocurrencies is extremely difficult. A full analys
 
 \subsection{Security Argument (Sketch)}\label{security}
 
-The security of \coin rests on the assumption that participants will choose to extend the chain with the most total work. Because of our commitment scheme a participant can only safely chose to use a given staked output once. If participants equivocate and try to re-use the staked output by extending multiple chains, then they will lose their stake entirely. If participants chose to extend some other chain instead of extending the longest chain the implication is more subtle. The participant will not lose his stake, but rather will lose the ability to propose a block using that stake. This is sub-optimal since the participant will lose our on any rewards associated with producing a block (in \coin, this is the transaction fees). Thus participants have a strong incentive to stake on the chain that the network will ultimately accept, since otherwise their opportunity to stake will be wasted. This is conceptually similar to the argument that a miner in Proof-of-Work will only mine on the longest chain. 
+The security of \coin rests on the assumption that participants will choose to extend the chain with the most total work. Because of our commitment scheme a participant can only safely chose to use a given staked output once. If participants equivocate and try to re-use the staked output by extending multiple chains, then they could lose their stake entirely. If participants chose to extend some other chain instead of extending the longest chain, the implications are more subtle. The participant will not lose his stake, but rather will lose the ability to propose a block on the canonical chain using that stake. This is sub-optimal since the participant will lose out on any rewards associated with producing a block (in \coin, these are the transaction fees) and lose their accumulated stake-age. Thus participants have a strong incentive to stake on the fork that the network will ultimately accept, since otherwise their opportunity to stake will be wasted. This is conceptually similar to the argument that a miner in Proof-of-Work will only mine on the longest chain. 
+
+As with all Proof-of-Stake systems, an individual or cabal at any point gaining a majority of the stake is fatal. From the block where a majority is possible all subsequent history can later be re-written arbitrarily and with negligible cost. Great care must be taken to construct the initial distribution such that this is unlikely to happen.
 
 \section{Conclusion}
 In the cryptocurrency community, Proof-of-Stake is a hotly debated alternative to energy-intensive Proof-of-Work. However, to the best of our knowledge no one has been able to realize Proof-of-Stake in practice. Furthermore, despite the interest there are few documented protocols and, to the best of our knowledge, no open source implementations of Proof-of-Stake. This work presents a clear description of a Proof-of-Stake algorithm that solves the \textit{Nothing-at-Stake} problem and provides an open source implementation that anyone can use. Our hope is that this work will help the community continue to debate and experiment with Proof-of-Work alternatives.    
@@ -98,6 +167,7 @@ Gilad, Yossi, et al. "Algorand: Scaling byzantine agreements for cryptocurrencie
 https://dci.mit.edu/cryptokernel/
 \bibitem{6824coincode}
 https://github.com/henryaspegren/6.824-Final-Project
+\bibitem{dlc} Thadeus Dryja. "Discreet Log Contracts". https://adiabat.github.io/dlc.pdf
 \end{thebibliography}
 
 \end{document}
