@@ -180,7 +180,7 @@ void CryptoKernel::Consensus::PoS::miner(){
 		std::advance(it, blockTimes.size() / 2);
 		const uint64_t medianTime = *it;
 
-		uint64_t time2 = medianTime;
+		uint64_t time2 = medianTime + 1;
 
 		Json::Value consensusDataThisBlock = block.getConsensusData();
 		Json::Value consensusDataPreviousBlock = previousBlock.getConsensusData();
@@ -492,7 +492,7 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoS::calculateTarget(Storage::Tran
 	const uint64_t minBlocks = 144;
 	const uint64_t maxBlocks = 4032;
     	const CryptoKernel::BigNum minDifficulty =
-        	CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffff");
+        	CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffff");
    	CryptoKernel::Blockchain::dbBlock currentBlock = blockchain->getBlockDB(transaction,
         	    previousBlockId.toString());
     	CryptoKernel::Consensus::PoS::ConsensusData currentBlockData =

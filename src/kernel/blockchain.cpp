@@ -445,6 +445,10 @@ std::tuple<bool, bool> CryptoKernel::Blockchain::submitBlock(Storage::Transactio
         if(newBlock.getTimestamp() > *it + 2.5 * 60 * 60) {
             return std::make_tuple(false, true);
         }
+
+        if(newBlock.getTimestamp() <= *it) {
+            return std::make_tuple(false, true);
+        }
     }
 
     if(!onlySave) {
