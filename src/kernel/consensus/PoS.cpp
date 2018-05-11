@@ -52,6 +52,9 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		const std::string outputRPointCommitment = std::get<1>(stakeState);
 		const bool outputCanBeStaked = std::get<2>(stakeState);
 		CryptoKernel::BigNum blockId = block.getId();
+		
+		// we use 1000 blocks back if possible to make stake grinding 
+		// more difficult 
 		if(block.getHeight() > 1000) {
 			blockId = this->blockchain->getBlockByHeightDB(transaction, block.getHeight() - 1000).getId();
 		}
@@ -100,6 +103,9 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 			return false;
 		}
 
+		// now verify the R point commits to 
+		// the pubKey that produced this block  
+		
 		committed_r_pubkey pub;
 		pub.A = EC_POINT_new(ctx->group);
 		pub.R = EC_POINT_new(ctx->group);
