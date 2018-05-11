@@ -53,7 +53,7 @@ To participate in the consensus algorithm, the participant or \textit{staker} mu
 \begin{center}
 $tx = \{value, publicKey, R\_point\}$
 \end{center}
-The $value$ is the total number of coins staked, the $R\_Point$ is a cryptographic commitment and the $publicKey$ is the public key of the potential future spender of the output. Later in the paper we will use the R-point commitment to guard against equivocation. Once this transaction has been included in a block, the output's age will be initialized to $ 1 $ increase by $ 1 $ for every block after the inclusion block until the output is used to propose a block when its age resets to $ 1 $.
+The $value$ is the total number of coins staked, the $R\_point$ is a cryptographic commitment and the $publicKey$ is the public key of the potential future spender of the output. Later in the paper we will use the R-point commitment to guard against equivocation. Once this transaction has been included in a block, the output's age will be initialized to $ 1 $ increase by $ 1 $ for every block after the inclusion block until the output is used to propose a block when its age resets to $ 1 $.
 
 This process contrasts to Proof-of-Work because it makes the system \textit{permissioned}. A potential staker needs to first have coins within the system and the ability to get their transactions included in the chain. Proof-of-Work only requires computational resources to participate and is thus \textit{permissionless}.
 
@@ -113,7 +113,7 @@ Similarly to in Discreet Log Contracts, we exploit this property of Schnorr sign
 In \ref{fig1} the staker tried to equivocate but their private key is revealed once they bet on the second branch. Anyone who notices this can take their staked coins.
 
 \begin{figure}[!h]
-	\caption{Extending A Non-Canoncial Chain}
+	\caption{Extending A Non-Canonical Chain}
 	\label{fig2}
 	\centering
 \begin{tikzcd}
