@@ -74,11 +74,11 @@ Please enter your wallet passphrase: ********
                "publicKey" : "BPDwsnbf2mvbMkOB9/R8SoftQHjZjc62IS4+gEdfQggBN75ZxlWYwUZgh2BTkLSU06hLRpQAdRCR1C0TfKHpL2Q=",
                "rPointCommitment" : "Ag2I0Amz83j6poAOA2jpEEVyg//+HvT4dkAhn9NSGprG"
             },
-            "nonce" : 2264682190,
+            "nonce" : 0,
             "value" : 682400000000000000
          }
       ],
-      "timestamp" : 1524517805
+      "timestamp" : 1525999018
    },
    "consensusData" : null,
    "data" : null,
@@ -88,13 +88,49 @@ Please enter your wallet passphrase: ********
 }
 ```
 
-The above genesis block gives all the coins to one public key and enables it to be staked. In a real system you would have the coins widely distributed with many initial stakers.
+The above genesis block gives all the coins to one public key and enables its coins to be staked. In a real system you would have the coins widely distributed with many initial stakers. Save the JSON of the genesis block in text file in the root directory where `ckd` is located.
 
 ### Putting it all together
 
+All that's left is to specify your coin parameters in `config.json` as an object in the `coins` array. Here is an example specification: 
+
+```
+{
+			"blockdb" : "./posblockdb",
+			"consensus" : 
+			{
+				"params" : 
+				{
+					"blocktime" : 150,
+					"ageWeight": "1",
+					"amountWeight": "1"
+				},
+				"type" : "pos"
+			},
+			"genesisblock" : "posgenesisblock.json",
+			"name" : "824Coin",
+			"peerdb" : "./pospeers",
+			"port" : 48000,
+			"rpcport" : 8383,
+			"subsidy" : "none",
+			"walletdb" : "./posaddressesdb"
+		}
+```
+
+The above example provides a negligible block reward so all coins should be emitted in the genesis block.
+
 ## Becoming a staker
+
+Edit `config.json` and fill in the `pubKey` and `privKey` fields with your staking public and private key respectively. Then set `miner` to `true` and `ckd` will stake any stakeable outputs for the given `pubKey`. Before an output is stakeable it must have a committed R-point.  
 
 ### Commit to an R-point
 
+In order to stake the coins associated with a given output, one has to create the output with a `rPointCommitment` data field. The script `stake.py` in `utils` provides example code to produce such an output. Edit the script to include your desired account to take outputs from, wallet password and RPC password and then run the script to issue a transaction.
+
 ## Recovering from re-orgs
 
+If you were unfortunate enough to not bet on the longest chain and your block was orphaned, you will need to commit to a new R-point before you can stake again. 
+
+## Using the demo coin 
+
+Since you do not have any coins in the demo system you will be unable to stake, but you will be able to sychronise and validate the system state. Simply running `./ckd` from the command line will allow you to connect to peers and download the blocks. It may be useful to set `verbose` to `true` in `config.json` after first-run in order to see things happening on the screen.
