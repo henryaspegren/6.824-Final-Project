@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <thread>
 
-#include <cschnorr/context.h>
+#include "../../cschnorr/context.h"
 
 #include "blockchain.h"
 
