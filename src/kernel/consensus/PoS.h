@@ -3,8 +3,7 @@
 
 #include <unordered_map>
 #include <thread>
-
-#include "../../cschnorr/context.h"
+#include <cschnorr/signature.h>
 
 #include "blockchain.h"
 

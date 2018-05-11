@@ -1,8 +1,7 @@
 #include <sstream>
 #include <math.h>
 #include <iostream>
-
-#include "../../cschnorr/signature.h"
+#include <cschnorr/signature.h>
 
 #include "PoS.h"
 #include "base64.h"
