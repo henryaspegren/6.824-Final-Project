@@ -21,9 +21,9 @@ int main() {
         throw std::runtime_error("Failure encoding R point");
     }  
 
-    std::cout << "k: \n" << base64_encode(newk, 32) << "\n\n";
+    std::cout << "r: \n" << base64_encode(newk, 32) << "\n\n";
     
-    std::cout << "r: \n" << base64_encode(newR, 33) << "\n\n";
+    std::cout << "R: \n" << base64_encode(newR, 33) << "\n\n";
     
     delete[] newk;
     delete[] newR;
