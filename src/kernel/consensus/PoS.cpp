@@ -51,7 +51,10 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		const uint64_t outputHeightLastStaked = std::get<0>(stakeState);
 		const std::string outputRPointCommitment = std::get<1>(stakeState);
 		const bool outputCanBeStaked = std::get<2>(stakeState);
-		const CryptoKernel::BigNum blockId = block.getId();
+		CryptoKernel::BigNum blockId = block.getId();
+		if(block.getHeight() > 1000) {
+			blockId = this->blockchain->getBlockByHeightDB(transaction, block.getHeight() - 1000).getId();
+		}
 
 		// check that the output can be staked
 		if( !outputCanBeStaked ){
@@ -85,7 +88,7 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		}
 
 		// verify the stake was selected according to the coin-age adjusted target
-		CryptoKernel::BigNum hash = this->calculateHash(blockId, blockData.timestamp, blockData.outputId);
+		CryptoKernel::BigNum hash = this->calculateHash(blockId, block.getTimestamp(), blockData.outputId);
 		if( hash > target * stakeConsumed){
 			return false;
 		}
@@ -97,9 +100,6 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 			return false;
 		}
 
-		// TODO - check timestamp here?
-
-		// TODO - check signature here?
 		committed_r_pubkey pub;
 		pub.A = EC_POINT_new(ctx->group);
 		pub.R = EC_POINT_new(ctx->group);
@@ -144,8 +144,10 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 		return true;
 	} catch(const CryptoKernel::Blockchain::InvalidElementException& e) {
 		return false;
-	};
-};
+	} catch(const CryptoKernel::Blockchain::NotFoundException& e) {
+		return false;
+	}
+}
 
 Json::Value CryptoKernel::Consensus::PoS::generateConsensusData(Storage::Transaction* transaction,
 	const CryptoKernel::BigNum& previousBlockId,
@@ -157,17 +159,28 @@ Json::Value CryptoKernel::Consensus::PoS::generateConsensusData(Storage::Transac
 };
 
 void CryptoKernel::Consensus::PoS::miner(){
-	time_t t = std::time(0);
-	uint64_t now = static_cast<uint64_t> (t);
 	while (run_miner) {
 		CryptoKernel::Blockchain::block block = this->blockchain->generateVerifyingBlock(pubKey);
 		CryptoKernel::Blockchain::dbBlock previousBlock = this->blockchain->getBlockDB(
                         block.getPreviousBlockId().toString());
 		uint64_t height = block.getHeight();
 
-		t = std::time(0);
-		now = static_cast<uint64_t> (t);
-		uint64_t time2 = now;
+
+		std::set<uint64_t> blockTimes;
+		CryptoKernel::Blockchain::block currentBlock = this->blockchain->getBlock(
+					block.getPreviousBlockId().toString());
+		for(uint64_t h = height - 1; h >= 1 && height - 1 - h < 13; h--) {
+			blockTimes.emplace(currentBlock.getTimestamp());
+			if(h > 1) {
+				currentBlock = this->blockchain->getBlockByHeight(h);
+			}
+		}
+
+		auto it = blockTimes.begin();
+		std::advance(it, blockTimes.size() / 2);
+		const uint64_t medianTime = *it;
+
+		uint64_t time2 = medianTime;
 
 		Json::Value consensusDataThisBlock = block.getConsensusData();
 		Json::Value consensusDataPreviousBlock = previousBlock.getConsensusData();
@@ -177,28 +190,13 @@ void CryptoKernel::Consensus::PoS::miner(){
 		bool blockMined = false;
 		CryptoKernel::BigNum previousBlockId = block.getPreviousBlockId();
 		do{
-			t = std::time(0);
-			time2 = static_cast<uint64_t>(t);
+			if(time2 > medianTime + 2.5 * 60 * 60) {
+				std::cout << "Exhausted timestamps\n";
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				break;
+			}
 
 			block.setTimestamp(time2);
-
-			if((time2-now) % 20 == 0 && (time2 - now) > 0){
-				// update block we are 'mining' on top of
-				auto newBlock = this->blockchain->generateVerifyingBlock(pubKey);
-				if(newBlock.getPreviousBlockId() != previousBlockId) {
-					block = newBlock;
-				    previousBlockId = block.getPreviousBlockId();
-				    previousBlock = this->blockchain->getBlockDB(
-				    block.getPreviousBlockId().toString());
-                    		    height = block.getHeight();
-				    consensusDataThisBlock = block.getConsensusData();
-				    consensusDataPreviousBlock = previousBlock.getConsensusData();
-				    totalWorkPrev = CryptoKernel::BigNum(
-                            		consensusDataPreviousBlock["totalWork"].asString());
-				    target = CryptoKernel::BigNum(consensusDataThisBlock["target"].asString());
-				    now = time2;
-				}
-			}
 
 			const auto outputs = this->blockchain->getUnspentOutputs(pubKey);
 
@@ -216,6 +214,11 @@ void CryptoKernel::Consensus::PoS::miner(){
 					continue;
 				}
 
+				CryptoKernel::BigNum blockId = block.getId();
+				if(block.getHeight() > 1000) {
+					blockId = this->blockchain->getBlockByHeight(block.getHeight() - 1000).getId();
+				}
+
 				uint64_t value = entry.getValue();
 				uint64_t outputHeightLastStaked = std::get<0>(stakeState);
 				std::string rPointCommitment = std::get<1>(stakeState);
@@ -223,7 +226,7 @@ void CryptoKernel::Consensus::PoS::miner(){
 				CryptoKernel::BigNum stakeConsumed =
 					this->calculateStakeConsumed(age, value);
 				CryptoKernel::BigNum hash =
-					this->calculateHash(block.getId(), time2, outputId);
+					this->calculateHash(blockId, time2, outputId);
 				// output selected
 				if( hash <= target * stakeConsumed) {
 					consensusDataThisBlock["stakeConsumed"] = stakeConsumed.toString();
@@ -235,7 +238,6 @@ void CryptoKernel::Consensus::PoS::miner(){
 					consensusDataThisBlock["outputValue"] = value;
 					consensusDataThisBlock["currentRPointCommitment"] = rPointCommitment;
 					consensusDataThisBlock["timestamp"] = time2;
-					// TODO - commit to new R pt
 
 					// Generate new R point
 					committed_r_key* newKey = committed_r_key_new(ctx);
@@ -275,8 +277,6 @@ void CryptoKernel::Consensus::PoS::miner(){
                     }
 
 					consensusDataThisBlock["newRPointCommitment"] = base64_encode(reinterpret_cast<unsigned char*>(&newR), 33);
-					// TODO - sign - prove R
-
 					const auto decodedOldK = base64_decode(rPointCommitment);
 
 					if(EC_POINT_oct2point(ctx->group, newKey->pub->R, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 33, ctx->bn_ctx) != 1) {
@@ -309,6 +309,8 @@ void CryptoKernel::Consensus::PoS::miner(){
 					blockMined = true;
 				}
 			}
+
+			time2++;
 		} while( run_miner && !blockMined );
 	};
 };
@@ -490,7 +492,7 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoS::calculateTarget(Storage::Tran
 	const uint64_t minBlocks = 144;
 	const uint64_t maxBlocks = 4032;
     	const CryptoKernel::BigNum minDifficulty =
-        	CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        	CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffff");
    	CryptoKernel::Blockchain::dbBlock currentBlock = blockchain->getBlockDB(transaction,
         	    previousBlockId.toString());
     	CryptoKernel::Consensus::PoS::ConsensusData currentBlockData =

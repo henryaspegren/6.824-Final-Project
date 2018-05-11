@@ -402,13 +402,6 @@ std::tuple<bool, bool> CryptoKernel::Blockchain::submitBlock(Storage::Transactio
         }
 
         const dbBlock previousBlock = dbBlock(previousBlockJson);
-
-        /*//Check that the timestamp is realistic
-        if(newBlock.getTimestamp() < previousBlock.getTimestamp()) {
-            log->printf(LOG_LEVEL_INFO, "blockchain::submitBlock(): Timestamp is unrealistic");
-            return std::make_tuple(false, true);
-        }*/
-
         if(!consensus->checkConsensusRules(dbTx, newBlock, previousBlock)) {
             log->printf(LOG_LEVEL_INFO,
                         "blockchain::submitBlock(): Consensus rules cannot verify this block");
@@ -436,6 +429,21 @@ std::tuple<bool, bool> CryptoKernel::Blockchain::submitBlock(Storage::Transactio
             }
         } else {
             blockHeight = tip.getHeight() + 1;
+        }
+
+        std::set<uint64_t> blockTimes;
+        dbBlock currentBlock = previousBlock;
+        for(uint64_t h = blockHeight - 1; h >= 1 && blockHeight - 1 - h < 13; h--) {
+            blockTimes.emplace(currentBlock.getTimestamp());
+            if(h > 1) {
+                currentBlock = getBlockDB(dbTx, currentBlock.getPreviousBlockId().toString());
+            }
+        }
+
+        auto it = blockTimes.begin();
+        std::advance(it, blockTimes.size() / 2);
+        if(newBlock.getTimestamp() > *it + 2.5 * 60 * 60) {
+            return std::make_tuple(false, true);
         }
     }
 
