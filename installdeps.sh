@@ -1,6 +1,8 @@
 sudo apt-get update
 sudo apt-get install -y git build-essential libsfml-dev libleveldb-dev libargtable2-dev libreadline-dev libcurl4-gnutls-dev liblua5.3-dev cmake libhiredis-dev doxygen libcppunit-dev
 
+cwd=$(pwd)
+
 cd /tmp
 
 wget https://www.openssl.org/source/openssl-1.1.0f.tar.gz
@@ -42,6 +44,13 @@ sudo cp -r selene/include/* /usr/local/include
 git clone https://github.com/metalicjames/lua-lz4.git
 cd lua-lz4
 make
-sudo cp lz4.so /usr/lib
+cp lz4.so $cwd
+
+cd ../
+git clone https://github.com/metalicjames/cschnorr.git
+cd cschnorr
+./build.sh
+sudo cp libcschnorr.a /usr/local/lib
+sudo cp src/*.h /usr/local/include/cschnorr
 
 sudo ldconfig
