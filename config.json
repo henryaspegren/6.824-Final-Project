@@ -2,7 +2,7 @@
 	"coins" : 
 	[
 		{
-			"blockdb" : "./posblockdb",
+			"blockdb" : "./posblockdb2",
 			"consensus" : 
 			{
 				"params" : 
@@ -11,20 +11,21 @@
 					"ageWeight": "1",
 					"amountWeight": "1"
 				},
-				"type" : "pos_naive"
+				"type" : "pos"
 			},
-			"genesisblock" : "posgenesisblock.json",
+			"genesisblock" : "posgenesisblock2.json",
 			"name" : "824Coin",
 			"peerdb" : "./pospeers",
 			"port" : 48000,
-			"rpcport" : 7383,
+			"rpcport" : 8383,
 			"subsidy" : "none",
 			"walletdb" : "./posaddressesdb"
 		}
 	],
-	"miner" : true,
-	"pubKey" : "BOoG870ja2N4bMEJYFjv2Me4tK3fVNLVgOUUSWsOdIN7m2hhX+YzxBLilNJgHGbaT6SMHz/Q8/EW+g0m4fDBHUk=",
-	"rpcpassword" : "f6G4Z6kVJgUWYHwCYd8V1rAMoBXkJtl/BKGGW0WAojg=",
+	"miner" : false,
+	"pubKey" : "",
+	"privKey" : "",
+	"rpcpassword" : "password",
 	"rpcuser" : "ckrpc",
-	"verbose" : true
+	"verbose" : false
 }
