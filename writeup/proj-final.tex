@@ -135,7 +135,7 @@ In \coin, the network also follows with the chain with the most 'total work', wh
 
 
 \section{Implementation}
-To implement \coin we used CryptoKernel \cite{ck}, a software package being developed by the Digital Currency Initiative for rapid prototyping cryptocurrencies \footnote{James Lovejoy is the lead developer of CryptoKernel}. CryptoKernel provides out-of-the-box networking, storage and replicated state machine code while allowing developers to implement their own consensus modules and other features. We implemented \coin by creating a new consensus module for CryptoKernel.
+To implement \coin we used CryptoKernel \cite{ck}, a software package being developed by the Digital Currency Initiative for rapid prototyping cryptocurrencies \footnote{James Lovejoy is the lead developer of CryptoKernel and cschnorr}. CryptoKernel provides out-of-the-box networking, storage and replicated state machine code while allowing developers to implement their own consensus modules and other features. We implemented \coin by creating a new consensus module for CryptoKernel. We used the \cite{cschnorr} library to provide the signing, verifying and key generation primitives needed for committed R-point signatures.
 
 We have created a genesis block for \coin and are currently running several nodes that are all participating in the consensus process. Anyone can join the network and start using the protocol, using our reference implementation on Github \cite{6824coincode}. To join the network simply download the code in the repository and follow the instructions in the README.
 
@@ -172,6 +172,7 @@ https://dci.mit.edu/cryptokernel/
 \bibitem{6824coincode}
 https://github.com/henryaspegren/6.824-Final-Project
 \bibitem{dlc} Thaddeus Dryja. "Discreet Log Contracts". https://adiabat.github.io/dlc.pdf
+\bibitem{cschnorr} https://github.com/metalicjames/cschnorr
 \end{thebibliography}
 
 \end{document}
