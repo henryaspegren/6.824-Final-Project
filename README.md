@@ -12,6 +12,10 @@ ECTO increases the cost of equivocation by enabling observers of equivocation to
 
 ECTO resists stake grinding by using a randomness source from 1000 blocks prior to the current block. This increases the work required to stake-grind successfully as affecting the current block would require you to have staked block n - 1000, which is likely to be very difficult to achive reliably in practice if the stake pool is well distributed. 
 
+## Building ECTO/CK
+
+It is easiest to build Cryptokernel on Ubuntu 16.04. Simply run the `./installdeps.sh` script to download, compile and install the dependencies. Then run `make` to build the Cryptokernel daemon `ckd`. More detailed instructions can be found on the upstream Cryptokernel github repo.
+
 ## Bootstrapping a new ECTO/CK network
 
 When boostraping an ECTO system it is important to ensure the initial stake is highly distributed across many entities. In PoS, 51% attacks are more dangerous than in PoW because they cannot be recovered from without hard forking. This also means care should be taken to ensure the initial distribution will not cause coins to become highly concentrated among a small number of entities. Finally, since PoS is a permissioned system, if there are no more stakeable coins in the system it will be impossible for any new blocks to be produced without a hard fork or deep re-org.
