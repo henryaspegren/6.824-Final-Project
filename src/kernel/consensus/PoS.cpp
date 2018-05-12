@@ -53,11 +53,11 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 
 		// current block id
 		CryptoKernel::BigNum blockIdCurrent = block.getId();
-		
-		// we use the block id from 1000 blocks ago as a source 
-		// of randomness for hte lottery to make stake grinding 
+
+		// we use the block id from 1000 blocks ago as a source
+		// of randomness for hte lottery to make stake grinding
 		// more difficult!
-		CryptoKernel::BigNum blockIdToUseInLottery = block.getId(); 
+		CryptoKernel::BigNum blockIdToUseInLottery = block.getId();
 		if(block.getHeight() > 1000) {
 			blockIdToUseInLottery = this->blockchain->getBlockByHeightDB(transaction, block.getHeight() - 1000).getId();
 		}
@@ -106,8 +106,8 @@ bool CryptoKernel::Consensus::PoS::checkConsensusRules(Storage::Transaction* tra
 			return false;
 		}
 
-		// now for the R point commitment  
-	
+		// now for the R point commitment
+
 		committed_r_pubkey pub;
 		pub.A = EC_POINT_new(ctx->group);
 		pub.R = EC_POINT_new(ctx->group);
@@ -214,10 +214,10 @@ void CryptoKernel::Consensus::PoS::miner(){
 					continue;
 				}
 
-				// we need to sign the current block 
+				// we need to sign the current block
 				CryptoKernel::BigNum blockIdCurrent = block.getId();
 
-				// but the old block provides the randomness to use in the 
+				// but the old block provides the randomness to use in the
 				// stake selection lottery
 				CryptoKernel::BigNum blockIdToUseInLottery = block.getId();
 				if(block.getHeight() > 1000) {
@@ -276,17 +276,17 @@ void CryptoKernel::Consensus::PoS::miner(){
 					of.close();
 
 					delete[] newk;
-					
-				
+
+
 					unsigned char newR[33];
                     if(EC_POINT_point2oct(ctx->group, newKey->pub->R, POINT_CONVERSION_COMPRESSED, reinterpret_cast<unsigned char*>(&newR), 33, ctx->bn_ctx) != 33) {
 						throw std::runtime_error("Failure encoding R point");
                     }
 
 					consensusDataThisBlock["newRPointCommitment"] = base64_encode(reinterpret_cast<unsigned char*>(&newR), 33);
-					
-					// Now sign with associated R point to prove 
-					// it is our stake 
+
+					// Now sign with associated R point to prove
+					// it is our stake
 					const auto decodedOldK = base64_decode(rPointCommitment);
 
 					if(EC_POINT_oct2point(ctx->group, newKey->pub->R, reinterpret_cast<const unsigned char*>(decodedOldK.c_str()), 33, ctx->bn_ctx) != 1) {
@@ -298,10 +298,10 @@ void CryptoKernel::Consensus::PoS::miner(){
 					}
 
 					committed_r_sig* sig;
-					
+
 					// we must sign the CURRENT block ID and the hash
 					// TODO: @James Lovejoy - why not just sign the current blockId... do we even need hash at all?
-					std::string to_sign = blockIdCurrent.toString()+hash.toString();	
+					std::string to_sign = blockIdCurrent.toString()+hash.toString();
 					if(committed_r_sign(ctx, &sig, newKey, reinterpret_cast<const unsigned char *>(to_sign.c_str()), to_sign.size()) != 1) {
 						throw std::runtime_error("Failure signing block");
 					}
@@ -506,7 +506,7 @@ CryptoKernel::BigNum CryptoKernel::Consensus::PoS::calculateTarget(Storage::Tran
 	const uint64_t minBlocks = 144;
 	const uint64_t maxBlocks = 4032;
     	const CryptoKernel::BigNum minDifficulty =
-        	CryptoKernel::BigNum("fffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        	CryptoKernel::BigNum("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
    	CryptoKernel::Blockchain::dbBlock currentBlock = blockchain->getBlockDB(transaction,
         	    previousBlockId.toString());
     	CryptoKernel::Consensus::PoS::ConsensusData currentBlockData =
