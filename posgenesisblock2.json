@@ -3,18 +3,26 @@
       "outputs" : [
          {
             "data" : {
-               "publicKey" : "BPDwsnbf2mvbMkOB9/R8SoftQHjZjc62IS4+gEdfQggBN75ZxlWYwUZgh2BTkLSU06hLRpQAdRCR1C0TfKHpL2Q=",
-               "rPointCommitment" : "Ag2I0Amz83j6poAOA2jpEEVyg//+HvT4dkAhn9NSGprG"
+               "publicKey" : "BOoG870ja2N4bMEJYFjv2Me4tK3fVNLVgOUUSWsOdIN7m2hhX+YzxBLilNJgHGbaT6SMHz/Q8/EW+g0m4fDBHUk=",
+               "rPointCommitment" : "A4OSMbtYmSJ4Pvh85v+H6ya0hJVIsnjcmVzp44DkOeHG"
             },
             "nonce" : 2264682190,
             "value" : 100000000000000
          },
-	 {
+         {
             "data" : {
-               "publicKey" : "BPDwsnbf2mvbMkOB9/R8SoftQHjZjc62IS4+gEdfQggBN75ZxlWYwUZgh2BTkLSU06hLRpQAdRCR1C0TfKHpL2Q="
+               "publicKey" : "BPmFD4i1fcpwRBL1G/DmR0B0dRsa8GWW10BFK4QEeQy3W0Dawt+x8hghKvUtApcCiOy57g9d+vkFvqLlwgtuAnY=",
+               "rPointCommitment" : "AnUEUhVpbgY6vfOum7Hrh+AS7iK/n+avff9/byXiJCT+"
             },
             "nonce" : 2264682190,
-            "value" : 682300000000000000
+            "value" : 100000000000000
+         },
+	     {
+            "data" : {
+               "publicKey" : "BFHPTXRdj6NF2YK3+R/Hy5RC/aKMkoeAbxQ4J85ZcQBesK7CK1J4CGBDEvhJP400Ukpw0ZA6aCTKdf/eZ2xVLVc="
+            },
+            "nonce" : 2264682190,
+            "value" : 682200000000000000
          }
       ],
       "timestamp" : 1524517805
